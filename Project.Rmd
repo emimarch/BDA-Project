@@ -51,11 +51,14 @@ library("ggplot2")
 #install.packages("gridExtra") 
 library("gridExtra")
 
-pa<-ggplot(data,aes(x=months_diff,y=Cases))+geom_point()
-qa <- ggplot(data,aes(x=months_diff,y=Pop_den))+geom_point()
-p<-ggplot(data,aes(x=months_diff,y=Cases,col=Country))+geom_point()+theme(legend.position="bottom", legend.text = element_text(size=3))
-q <- ggplot(data,aes(x=months_diff,y=Pop_den,col=Country))+geom_point()+theme(legend.position="bottom", legend.text = element_text(size=3))
-grid.arrange(pa,qa,p,q,nrow=2)
+pa<-ggplot(data,aes(x=months_diff,y=Cases))+geom_point(size=1, position = "jitter")
+qa <- ggplot(data,aes(x=months_diff,y=Pop_den))+geom_point(size=1, position = "jitter")
+grid.arrange(pa,qa,ncol=2)
+```
+```{r}
+p<-ggplot(data,aes(x=months_diff,y=Cases,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
+q <- ggplot(data,aes(x=months_diff,y=Pop_den,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
+grid.arrange(p,q,ncol=2)
 
 ```
 
@@ -65,6 +68,8 @@ As can be observed from the panels above, there is obvious relationship between 
 
 
 ### Pooled
+
+
 
 ### Hierarchical
 
