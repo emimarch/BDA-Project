@@ -44,7 +44,7 @@ The following line shows the number of observations per country, where each obse
 ```{r}
 table(data$Country)
 ```
-A more illustrative representation of the dataset can be seen from the scatter plots of months_diff and Cases below. In the top panels, we do not distinguish between countries. In the bottom panels, we differentiate between the observations of different countries by color. 
+A more illustrative representation of the dataset can be seen from the scatter plots of below. In the top panels, we do not distinguish between countries. In the bottom panels, we differentiate between the observations of different countries by color. 
 
 ```{r}
 library("ggplot2")
