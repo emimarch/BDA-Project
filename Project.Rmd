@@ -84,7 +84,17 @@ Cases_j \sim N(\mu + \beta_{pop\_den}pop\_den_{j} + \beta_{month\_diff}month\_di
 $$
 Following the pooled model approach, the parameter $\mu$, $\beta_{pop\_den}$, $\beta_{month\_diff}$, $\beta_{pop\_den,month\_diff}$ and $\sigma$ defining the normal distribution are drawn from the same prior distributions for every observation $\Cases_j$. 
 
-We want weakly information or uninformative priors for this model, as long as they are proper priors. 
+We want weakly information or uninformative priors for this model, as long as they are proper priors. More information on prior choices will be given in the "Prior choices" section. We define these priors as: 
+
+$$
+
+\mu \sim N(0, 10)\\
+\beta_{pop\_den} \sim N(5000, 2000) \\
+\beta_{month\_diff} \sim N(5000, 2000)\\
+\beta_{pop\_den, month\_diff} \sim N(5000, 2000)\\
+\sigma \sim gamma(1,1)
+$$
+The stan model is reported below: 
 
 ```{stan output.var='pooled'}
 data {
@@ -144,14 +154,6 @@ pooled_model <- rstan::sampling(pooled, data = stan_data)
 pooled_draws <- rstan::extract(pooled_model)
 ```
 
-```{r}
-library("loo")
-
-loo_pooled <- loo(pooled_model,save_psis=TRUE)
-print(loo_pooled)
-
-plot(loo_pooled)
-```
 
 ### Hierarchical
 
@@ -170,7 +172,31 @@ $$
 
 ## Convergence analysis
 
+!Note: add about ESS
 
+In this section, we evaluate that our models have reached convergence by observing the value of $\hat{R}$. If this parameter is close to 1, we can safely assume that our MCMC has reached convergence. 
+
+### Pooled 
+
+```{r}
+summary(pooled_model)
+```
+
+### Hierarchical
+
+```{r}
+
+```
+
+## Model selection 
+```{r}
+library("loo")
+
+loo_pooled <- loo(pooled_model,save_psis=TRUE)
+print(loo_pooled)
+
+plot(loo_pooled)
+```
 ## Posterior predictive checks ?
 
 
