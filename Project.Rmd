@@ -36,7 +36,7 @@ The final dataset contains 165 entries and three columns : Country, Cases, Month
 
 
 ```{r}
-data <- read.csv(file = 'ebola_population_aggregate.csv')
+data <- read.csv(file = 'ebola_population_aggregate_same_span.csv')
 head(data)
 ```
 ```{r}
@@ -88,7 +88,7 @@ We want weakly information or uninformative priors for this model, as long as th
 
 $$
 
-\mu \sim N(0, 10)\\
+\mu \sim N(0, 10000)\\
 \beta_{pop\_den} \sim N(5000, 2000) \\
 \beta_{month\_diff} \sim N(5000, 2000)\\
 \beta_{pop\_den, month\_diff} \sim N(5000, 2000)\\
@@ -115,13 +115,13 @@ parameters {
 model {
 
   // Priors
-  mu ~ normal(0, 10);
+  mu ~ normal(0, 10000);
   beta_month ~ normal(5000, 2000);
   beta_pop ~ normal(5000,2000);
   beta_month_pop ~ normal(5000,2000);
   sigma ~ gamma(1, 1);
   
-  
+
   for (i in 1:N){
     cases[i] ~ normal(mu + beta_month*month[i] + beta_pop*pop_den[i] + beta_month_pop*month[i]*pop_den[i], sigma);
   }
@@ -134,10 +134,10 @@ generated quantities {
   ypred = normal_rng(mu, sigma); // pooled predictive distribution 
   
   for(i in 1:N)
-   {
+    {
       log_lik[i] = normal_lpdf(cases[i] | mu + beta_month*month[i] + beta_pop*pop_den[i] + beta_month_pop*month[i]*pop_den[i], sigma);
    }
-   
+
 }
 
 ```
@@ -162,9 +162,205 @@ In the hierarchical approach, we do not assume shared priors as in the pooled ap
 
 $$
 
-Cases_{ij}| \mu_j, \beta, \sigma \sim N(\mu_j + \beta_{pop\_den} pop\_den_{ij} + \beta_)
+Cases_{ij}| \mu_j, \beta, \sigma \sim N(\mu_j + \beta_{pop\_den_j} pop\_den_{ij} + \beta_{month_j}month_{ij} + \beta_{month, pop\_den_j} month_{ij} \times pop\_den_{ij}, \sigma^2)\\
+
+\\
+\\
+\text{Priors}\\
+\\
+\\
+\\
+\sigma \sim gamma(1,1)\\
+\mu_j \sim N(\mu_h,\tau)\\
+\beta_{pop\_den_j} \sim N(\beta_{hpop\_den}, \tau_{hpop\_den})\\
+\beta_{month, pop\_den_j}\sim N(\beta_{hmonth, pop\_den}, \tau_{hmonth,pop})\\
+\beta_{month_j}\sim N(\beta_{hmonth}, \tau_{month})\\
+\\
+\\
+\\
+\text{Hyperprios}\\
+\\
+\\
+\mu_h \sim N(0, 10000) \\
+\tau \sim gamma(1,1) \\
+
+\beta_{hpop\_den} \sim N(2000, 50000)\\
+\beta_{hmonth, pop\_den} \sim N(2000, 50000)\\
+\beta_{hmonth} \sim N(2000, 30000)\\
+
+\tau_{hpop\_den} \sim gamma(1,1)\\
+\tau_{hmonth,pop\_den} \sim gamma(1,1)\\
+\tau_{month} \sim gamma(1,1)\\
+
 
 $$
+
+
+```{stan output.var='hierarchical'}
+data {
+  int<lower=0> M; //number of countries
+  int<lower=0> N;//max number of obs across all the countries
+  
+  vector[M] month[N];//vector of months
+  vector[M] pop_den[N];//population density
+  vector[M] cases[N];
+  
+}
+
+parameters {
+  vector[M] mu;
+  vector[M] beta_month;
+  vector[M] beta_pop;
+  vector[M] beta_month_pop;
+  real<lower=0>sigma;
+  real<lower=0> tau;
+  real hyper_mu;
+  real hyper_beta_month;
+  real hyper_beta_pop;
+  real hyper_beta_month_pop;
+ 
+}
+
+model {
+
+  tau ~ gamma(1,1);
+  sigma ~ gamma(1,1);
+  hyper_mu ~ normal(0, 10000);
+  hyper_beta_pop ~ normal(2000,5000);
+  hyper_beta_month ~ normal(2000,5000);
+  hyper_beta_month_pop ~ normal(2000,5000);
+
+  for (j in 1:M){
+    mu[j] ~ normal(hyper_mu, tau);
+    beta_month[j] ~ normal(hyper_beta_month, tau);
+    beta_pop[j] ~ normal(hyper_beta_pop, tau);
+    beta_month_pop[j] ~ normal(hyper_beta_month_pop, tau);
+  
+    for (n in 1:N){
+      cases[n,j] ~ normal(mu[j] + beta_month[j]*month[n,j] + beta_pop[j]*pop_den[n,j] + beta_month_pop[j]*month[n,j]*pop_den[n,j], sigma);
+    }
+  }
+}
+
+generated quantities {
+  
+  vector[M] log_lik[N];
+  
+  for (j in 1:M){
+    for(i in 1:N){
+      log_lik[i,j] = normal_lpdf(cases[i,j] | mu[j] + beta_month[j]*month[i,j] + beta_pop[j]*pop_den[i,j] + beta_month_pop[j]*month[i,j]*pop_den[i,j], sigma);
+   }
+  }
+}
+
+
+
+```
+
+
+
+
+```{stan output.var='hierarchical_mod'}
+data {
+  int<lower=0> M; //number of countries
+  int<lower=0> N;//max number of obs across all the countries
+  
+  vector[M] month[N];//vector of months
+  vector[M] pop_den[N];//population density
+  vector[M] cases[N];
+  
+}
+
+parameters {
+  vector[M] mu;
+  real beta_month;
+  real beta_pop;
+  real beta_month_pop;
+  real<lower=0>sigma;
+  real<lower=0> tau;
+  real hyper_mu;
+
+ 
+}
+
+model {
+
+  tau ~ gamma(1,1);
+  sigma ~ gamma(1,1);
+  hyper_mu ~ normal(0, 10000);
+  beta_month ~ normal(5000, 2000);
+  beta_pop ~ normal(5000,2000);
+  beta_month_pop ~ normal(5000,2000);
+
+  for (j in 1:M){
+    mu[j] ~ normal(hyper_mu, tau);
+  
+    for (n in 1:N){
+      cases[n,j] ~ normal(mu[j] + beta_month*month[n,j] + beta_pop*pop_den[n,j] + beta_month_pop *month[n,j]*pop_den[n,j], sigma);
+    }
+  }
+}
+
+generated quantities {
+  
+  vector[M] log_lik[N];
+  
+  for (j in 1:M){
+    for(i in 1:N){
+      log_lik[i,j] = normal_lpdf(cases[i,j] | mu[j] + beta_month*month[i,j] + beta_pop *pop_den[i,j] + beta_month_pop *month[i,j]*pop_den[i,j], sigma);
+   }
+  }
+}
+
+
+
+```
+```{r}
+#make_dataframe = function(col_name, df){
+  #new_df = data.frame(matrix(nrow=8))
+  
+  #for (country in Countries){
+    #new_country_col <- df[df$Country == country, col_name]
+    #n_obs <- length(new_country_col)
+    #new_df[country] <- c(new_country_col, rep(-200, max_obs-n_obs))
+  #}
+  #return(new_df[,2:length(new_df)])
+#}
+
+
+months<- matrix(nrow = 8, ncol = 17)
+pop_den <- matrix(nrow = 8, ncol = 17)
+cases <- matrix(nrow = 8, ncol = 17)
+
+
+row_count <- 1
+for (i in 1:8){
+  for (j in 1:17){
+    #print(i)
+    #print(j)
+    months[i,j] = data$months_diff[row_count]
+    pop_den[i,j] = data$Pop_den[row_count]
+    cases[i,j] = data$Cases[row_count]
+    row_count <- row_count + 1 
+  }
+}
+
+
+```
+
+```{r}
+stan_data_hier <- list(
+  cases = t(cases),
+  N = 17,
+  M = 8,
+  month=t(months),
+  pop_den=t(pop_den)
+)
+hier_d <- cmdstan_model(stan_file = "hier.stan")
+model_hierarchical <- hier_d$sample(data = stan_data_hier, refresh=1000)
+
+```
+
 
 
 ## Prior choices
@@ -189,6 +385,8 @@ summary(pooled_model)
 ```
 
 ## Model selection 
+
+
 ```{r}
 library("loo")
 
@@ -196,6 +394,17 @@ loo_pooled <- loo(pooled_model,save_psis=TRUE)
 print(loo_pooled)
 
 plot(loo_pooled)
+
+```
+
+```{r}
+
+loo_hier<- model_hierarchical$loo()
+print(loo_hier)
+
+plot(loo_hier)
+
+print(loo_hier$elpd_loo)
 ```
 ## Posterior predictive checks ?
 
