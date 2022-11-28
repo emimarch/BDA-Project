@@ -11,12 +11,55 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Introduction 
 
 -the motivation
+
+For our Bayesian Data Analysis Project, we aim to 
+
 -the problem
 -and the main modeling idea.
 -Showing some illustrative figure is recommended.
 
 ## Data
 
+### Data preprocessing
+
+We collected the total number of Ebola cases from the Ebola dataset provided by WHO and shared by humandata.org (we use ebola_data_db_format.csv from https://data.humdata.org/dataset/ebola-cases-2014). The ebola cases we use in our project are an aggregate of suspected, confirmed and probable ebola cases, which are based on official information reported by ministries of health. The priginal dataset contains figures for ten countries: 	
+Guinea,  Italy,  Liberia,  Mali,  Nigeria,  Senegal,  Sierra Leone,  Spain,  United Kingdom,  United States. Each country spans it own date range of varying length between the end 2014 to the beginning of 2016, therefore we have different number of observations for each country. The case count is usually provided every 1 to 3 days (although the periodicity varies by country), that we aggregate into monthly figures. We did so by assigning the month value of 0 to the first date that appears in the dataset, and calculate the the other month values as the month difference from the first date. The first date in our dataset was 2014-08-29 for Guinea, so all observations occuring 30 days after that have month difference value 0. The observations with date 2015-12-29 for the United States, on the other hand, has month_diff value 15 because the difference in time between this date and the first date in our dataset is 15 months.
+We aggregated this data with the population density for each country at the given date. We use the population density from the WorldBank database. The population density can only access as a yearly figure. Therefore,using the previous example of the United states with month_diff value 15 calculated from date 2015-12-29, the pop_dens value will represent the population density of the United States in 2015. 
+
+The final dataset contains 165 entries and three columns : Country, Cases, Months\_diff, and Pop\_dens. Months_diff is the number of months from the earliest data we could access cases information on, that is 2014-08-29 for Guinea. Country is a country among the 10 we selected. Cases is the aggregate of suspected, confirmed and propable ebola cases for the given Country during the given months_diff, and pop_den is yearly population density that the country had during the given months_diff.
+
+
+```{r}
+data <- read.csv(file = 'ebola_population_aggregate.csv')
+head(data)
+```
+```{r}
+str(data)
+```
+
+
+The following line shows the number of observations per country, where each observation represents a value of the months_diff. As can be observed and as was mentioned before, the number of observations per country differ because the cases were not provided for the same data spans for all countries. For instance, the ebola dataset from human_data.org included only dates from 2015-05-14 to 2016-03-23 for Italy (which correspond to month_diff 8 to 18) with cases unreported for several months too. Meanwhile, the cases for Guinea were given from 2014-08-29 (month_diff = 0) to 2016-03-23 (month_diff = 18). 
+
+
+```{r}
+table(data$Country)
+```
+A more illustrative representation of the dataset can be seen from the scatter plots of months_diff and Cases below. In the top panels, we do not distinguish between countries. In the bottom panels, we differentiate between the observations of different countries by color. 
+
+```{r}
+library("ggplot2")
+#install.packages("gridExtra") 
+library("gridExtra")
+
+pa<-ggplot(data,aes(x=months_diff,y=Cases))+geom_point()
+qa <- ggplot(data,aes(x=months_diff,y=Pop_den))+geom_point()
+p<-ggplot(data,aes(x=months_diff,y=Cases,col=Country))+geom_point()+theme(legend.position="bottom", legend.text = element_text(size=3))
+q <- ggplot(data,aes(x=months_diff,y=Pop_den,col=Country))+geom_point()+theme(legend.position="bottom", legend.text = element_text(size=3))
+grid.arrange(pa,qa,p,q,nrow=2)
+
+```
+
+As can be observed from the panels above, there is obvious relationship between the country and the cases count by month. This will come to show that the pooled model will not accurately fit our data, because of this dependency of the country and the cases. On the other hand, a hierarchical model that differentiates between countries, will result in a significantly better fit. 
 
 ## Models 
 
