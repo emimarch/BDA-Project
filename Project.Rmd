@@ -44,7 +44,7 @@ str(data)
 ```
 
 
-The following line shows the number of observations per country, where each observation represents a value of the months_diff. As can be observed and as was mentioned before, the number of observations per country differ because the cases were not provided for the same data spans for all countries. For instance, the ebola dataset from human_data.org included only dates from 2015-05-14 to 2016-03-23 for Italy (which correspond to month_diff 8 to 18) with cases unreported for several months too. Meanwhile, the cases for Guinea were given from 2014-08-29 (month_diff = 0) to 2016-03-23 (month_diff = 18). 
+The following line shows the number of observations per country, where each observation represents a value of the months_diff. As can be observed and as was mentioned before, the number of observations per country differ because the cases were not provided for the same date spans for all countries. For instance, the ebola dataset from human_data.org included only dates from 2015-05-14 to 2016-03-23 for Italy (which correspond to month_diff 8 to 18) with cases unreported for several months too. Meanwhile, the cases for Guinea were given from 2014-08-29 (month_diff = 0) to 2016-03-23 (month_diff = 18). 
 
 
 ```{r}
@@ -155,7 +155,7 @@ plot(loo_pooled)
 
 ### Hierarchical
 
-In the hierarchical approach, we do not assume shared priors as in the pooled approach, neither completely distinguished group level priors as in the separate approach, but we differentiate between countries by assigning each country its own prior that's sampled from the same hyper-prior distribution for each country. This should allow some differentiation between countries while maining a level of dependency among all observations by sampling from the same hyper-priors. We can then say that we can model the number of cases for country $i$ in month\_diff $j$ as reported below: 
+In the hierarchical approach, we do not assume shared priors as in the pooled approach, neither completely distinguished group level priors as in the separate approach, but we differentiate between countries by assigning each country its own prior that's sampled from the same hyper-prior distribution for each country. This should allow some differentiation between countries while maintaining a level of dependency among all observations by sampling from the same hyper-priors. We can then say that we can model the number of cases for country $i$ in month\_diff $j$ as reported below: 
 
 
 $$
