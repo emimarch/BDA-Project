@@ -26,13 +26,13 @@ For our Bayesian Data Analysis Project, we aim to
 
 ### Data preprocessing
 
-We collected the total number of Ebola cases from the Ebola dataset provided by WHO and shared by humandata.org (we use ebola_data_db_format.csv from https://data.humdata.org/dataset/ebola-cases-2014). The ebola cases we use in our project are an aggregate of suspected, confirmed and probable ebola cases, which are based on official information reported by ministries of health. The priginal dataset contains figures for ten countries: 	
-Guinea,  Italy,  Liberia,  Mali,  Nigeria,  Senegal,  Sierra Leone,  Spain,  United Kingdom,  United States. Each country spans it own date range of varying length between the end 2014 to the beginning of 2016, therefore we have different number of observations for each country. The case count is usually provided every 1 to 3 days (although the periodicity varies by country), that we aggregate into monthly figures. We did so by assigning the month value of 0 to the first date that appears in the dataset, and calculate the the other month values as the month difference from the first date. The first date in our dataset was 2014-08-29 for Guinea, so all observations occuring 30 days after that have month difference value 0. The observations with date 2015-12-29 for the United States, on the other hand, has month_diff value 15 because the difference in time between this date and the first date in our dataset is 15 months.
-We aggregated this data with the population density for each country at the given date. We use the population density from the WorldBank database. The population density can only access as a yearly figure. Therefore,using the previous example of the United states with month_diff value 15 calculated from date 2015-12-29, the pop_dens value will represent the population density of the United States in 2015. 
+We collected the total number of Ebola cases from the Ebola dataset provided by WHO and shared by humandata.org (we use ebola_data_db_format.csv from https://data.humdata.org/dataset/ebola-cases-2014). The ebola cases we use in our project are an aggregate of suspected, confirmed and probable ebola cases, which are based on official information reported by ministries of health. The original dataset contains figures for ten countries: 	
+Guinea,  Italy,  Liberia,  Mali,  Nigeria,  Senegal,  Sierra Leone,  Spain,  United Kingdom,  United States. Each country spans it own date range of varying length between the end 2014 to the beginning of 2016, therefore we have different number of observations for each country. The case count is usually provided every 1 to 3 days (although the periodicity varies by country), that we aggregate into monthly figures. We did so by assigning the month value of 0 to the first date that appears in the dataset, and calculate the the other month values as the month difference from the first date. The first date in our dataset was 2014-08-29 for Guinea, so all observations occuring 30 days after that have month difference value 0. The observations with date 2015-12-29 for the United States, on the other hand, has month_diff value 15 because the difference in time between this date and the first date in our dataset is 15 months. We decided to drop Italy and the United Kingdom from our analysis, because they had too many missing values. 
+We aggregated the data for the remaining countries with the population density for each country at the given date. We use the population density from the WorldBank database. The population density can only access as a yearly figure. Therefore,using the previous example of the United states with month_diff value 15 calculated from date 2015-12-29, the pop_dens value will represent the population density of the United States in 2015. 
 
 ## Processed dataset
 
-The final dataset contains 165 entries and three columns : Country, Cases, Months\_diff, and Pop\_dens. Months_diff is the number of months from the earliest data we could access cases information on, that is 2014-08-29 for Guinea. Country is a country among the 10 we selected. Cases is the aggregate of suspected, confirmed and propable ebola cases for the given Country during the given months_diff, and pop_den is yearly population density that the country had during the given months_diff.
+The final dataset contains 136 entries and four columns : Country, Cases, Months\_diff, and Pop\_dens. Months_diff is the number of months from the earliest data we could access cases information on, that is 2014-08-29 for Guinea. Country is a country among the 8 we selected. Cases is the aggregate of suspected, confirmed and propable ebola cases for the given Country during the given months_diff, and pop_den is yearly population density that the country had during the given months_diff.
 
 
 ```{r}
@@ -44,7 +44,7 @@ str(data)
 ```
 
 
-The following line shows the number of observations per country, where each observation represents a value of the months_diff. As can be observed and as was mentioned before, the number of observations per country differ because the cases were not provided for the same date spans for all countries. For instance, the ebola dataset from human_data.org included only dates from 2015-05-14 to 2016-03-23 for Italy (which correspond to month_diff 8 to 18) with cases unreported for several months too. Meanwhile, the cases for Guinea were given from 2014-08-29 (month_diff = 0) to 2016-03-23 (month_diff = 18). 
+The following line shows the number of observations per country, where each observation represents a value of the months_diff. As can be observed and as was mentioned before, the number of observations per country is because the cases were not provided for the same date spans for all countries. For instance, the ebola dataset from human_data.org included only dates from 2015-05-14 to 2016-03-23 for Italy (which correspond to month_diff 8 to 18) with cases unreported for several months too. Meanwhile, the cases for Guinea were given from 2014-08-29 (month_diff = 0) to 2016-03-23 (month_diff = 18). 
 
 
 ```{r}
@@ -364,6 +364,28 @@ model_hierarchical <- hier_d$sample(data = stan_data_hier, refresh=1000)
 
 
 ## Prior choices
+
+### Pooled model
+For the pooled model, we define the priors for $\mu$, $\sigma$, $\beta_{pop\_den}$, $\beta_{month}$, $\beta_{month, pop\_den}$. For $\mu$ we decided on $\mu \sim N(0, 100000)$, reasoning that the intercept of cases should be 0 and the sd needs to be sufficiently large to be uninformative. The choice of 0 as the mean is grounded by the fact that the new ebola outbreak started in 2014, so we assume that any months following the ones in our dataset had no ebola cases. We assign a large standard deviation to account for the possibility of still having cases before the start of our timeline. 
+
+We chose $\sigma \sim$. 
+
+We chose $\beta_{pop\_den} \sim N(60, 10000)$. We center it at 60 since this the average population density in the entire world, and give it a sd of 10000 to make it sufficiently uninformative.
+We chose $\beta_{month} \sim N(0, 10000)$ as a sufficiently uninformative prior, since it detains no assumptions about the sign or magnitude of the parameter. 
+We also chose $\beta_{month, pop\_den} \sim N(0,10000)$ arguing that we cannot make any assumption about the sign and the magnitude of this parameter. 
+
+
+
+### Hierarchical model
+For the hierarchical model, we chose our hyperpriors analogously to our prior choices in the pooled mode. 
+For $\mu_h$ we decided on $\mu_h \sim N(0, 100000)$, reasoning that the intercept of cases should be 0 and the sd needs to be sufficiently large to be uninformative.
+We chose $\beta_{hpop\_den} \sim N(60, 10000)$. We center it at 60 since this the average population density in the entire world, and give it a sd of 10000 to make it sufficiently uninformative.
+We chose $\beta_{hmonth} \sim N(0, 10000)$ as a sufficiently uninformative prior, since it detains no assumptions about the sign or magnitude of the parameter. 
+We also chose $\beta_{hmonth, pop\_den} \sim N(0,10000)$ arguing that we cannot make any assumption about the sign and the magnitude of this parameter. 
+We
+
+
+
 
 
 ## Convergence analysis
