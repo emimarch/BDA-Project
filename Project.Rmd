@@ -20,6 +20,10 @@ For our Bayesian Data Analysis Project, we aim to
 
 -the problem
 -and the main modeling idea.
+
+The main modeling idea in inspired by 
+
+
 -Showing some illustrative figure is recommended.
 
 ## Data
@@ -27,12 +31,12 @@ For our Bayesian Data Analysis Project, we aim to
 ### Data preprocessing
 
 We collected the total number of Ebola cases from the Ebola dataset provided by WHO and shared by humandata.org (we use ebola_data_db_format.csv from https://data.humdata.org/dataset/ebola-cases-2014). The ebola cases we use in our project are an aggregate of suspected, confirmed and probable ebola cases, which are based on official information reported by ministries of health. The original dataset contains figures for ten countries: 	
-Guinea,  Italy,  Liberia,  Mali,  Nigeria,  Senegal,  Sierra Leone,  Spain,  United Kingdom,  United States. Each country spans it own date range of varying length between the end 2014 to the beginning of 2016, therefore we have different number of observations for each country. The case count is usually provided every 1 to 3 days (although the periodicity varies by country), that we aggregate into monthly figures. We did so by assigning the month value of 0 to the first date that appears in the dataset, and calculate the the other month values as the month difference from the first date. The first date in our dataset was 2014-08-29 for Guinea, so all observations occuring 30 days after that have month difference value 0. The observations with date 2015-12-29 for the United States, on the other hand, has month_diff value 15 because the difference in time between this date and the first date in our dataset is 15 months. We decided to drop Italy and the United Kingdom from our analysis, because they had too many missing values. 
-We aggregated the data for the remaining countries with the population density for each country at the given date. We use the population density from the WorldBank database. The population density can only access as a yearly figure. Therefore,using the previous example of the United states with month_diff value 15 calculated from date 2015-12-29, the pop_dens value will represent the population density of the United States in 2015. 
+Guinea,  Italy,  Liberia,  Mali,  Nigeria,  Senegal,  Sierra Leone,  Spain,  United Kingdom,  United States. Each country spans it own date range of varying length between the end 2014 to the beginning of 2016, therefore we have different number of observations for each country. The case count is usually provided every 1 to 3 days (although the periodicity appear to vary by country), that we aggregate into monthly figures. We did so by assigning the month value of 0 to the first date that appears in the dataset, and calculate the the other month values as the month difference from the first date. The first date in our original dataset was 2014-08-29 for Guinea, so all observations occuring 30 days after that have month difference value 0. The observations with date 2015-12-29 for the United States, on the other hand, has month_diff value 15 because the difference in time between this date and the first date in our dataset is 15 months. We opted for this approach, because we wanted the month_diff to represent the month count from the start of the outbreak. We decided to drop Italy and the United Kingdom from our analysis due to the fact that they had too many missing values. We also dropped observations having month = 0, since most of the remaining countries had observations starting from month 1. 
+We aggregated the data for the remaining countries with the population density for each country at the given date. We use the population density from the WorldBank database. The population density can only access as a yearly figure. Therefore, using the previous example of the United states with month_diff value 15 calculated from date 2015-12-29, the pop_dens value will represent the population density of the United States in 2015. 
 
 ## Processed dataset
 
-The final dataset contains 136 entries and four columns : Country, Cases, Months\_diff, and Pop\_dens. Months_diff is the number of months from the earliest data we could access cases information on, that is 2014-08-29 for Guinea. Country is a country among the 8 we selected. Cases is the aggregate of suspected, confirmed and propable ebola cases for the given Country during the given months_diff, and pop_den is yearly population density that the country had during the given months_diff.
+The final dataset contains 136 entries and four columns : Country, Cases, months\_diff, and Pop\_den. The variable months_diff is the number of months from the earliest data we could access cases information on, that is 2014-08-29 for Guinea. Country is a country among the 8 we selected. Cases is the aggregate of suspected, confirmed and probable ebola cases for the given country during the given months_diff, and pop_den is yearly population density that the country had during the given months_diff.
 
 
 ```{r}
@@ -43,14 +47,16 @@ head(data)
 str(data)
 ```
 
-
-The following line shows the number of observations per country, where each observation represents a value of the months_diff. As can be observed and as was mentioned before, the number of observations per country is because the cases were not provided for the same date spans for all countries. For instance, the ebola dataset from human_data.org included only dates from 2015-05-14 to 2016-03-23 for Italy (which correspond to month_diff 8 to 18) with cases unreported for several months too. Meanwhile, the cases for Guinea were given from 2014-08-29 (month_diff = 0) to 2016-03-23 (month_diff = 18). 
-
+Our final dataset contains 17 observations per country, each spanning months_diff 1,2,3,4,5,6,7,8,9, 10, 11, 12, 13, 14, 15,16 and 18 respectivley. Month 17 was missing for every country in the original dataset, but the other observations are otherwise linear in time. 
 
 ```{r}
+print('Observations by Country:')
 table(data$Country)
+
+print('Observations by month_diff:')
+table(data$months_diff)
 ```
-A more illustrative representation of the dataset can be seen from the scatter plots of below. In the top panels, we do not distinguish between countries. In the bottom panels, we differentiate between the observations of different countries by color. 
+A more illustrative representation of the dataset can be seen from the scatter plots of below. In the top panels, we do not distinguish between countries. In the bottom panels, we differentiate between the observations of different countries by color. A small jitter is added to all graph to highlight overlapped points.  
 
 ```{r}
 library("ggplot2")
@@ -59,12 +65,14 @@ library("gridExtra")
 
 pa<-ggplot(data,aes(x=months_diff,y=Cases))+geom_point(size=1, position = "jitter")
 qa <- ggplot(data,aes(x=months_diff,y=Pop_den))+geom_point(size=1, position = "jitter")
-grid.arrange(pa,qa,ncol=2)
+za <- ggplot(data,aes(x=Pop_den,y=Cases))+geom_point(size=1, position = "jitter")
+grid.arrange(pa,qa,za, ncol=3)
 ```
 ```{r}
 p<-ggplot(data,aes(x=months_diff,y=Cases,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
 q <- ggplot(data,aes(x=months_diff,y=Pop_den,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
-grid.arrange(p,q,ncol=2)
+z <- ggplot(data,aes(x=Pop_den,y=Cases,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
+grid.arrange(p,q,z,ncol=3)
 
 ```
 
@@ -72,11 +80,11 @@ As can be observed from the panels above, there is obvious relationship between 
 
 ## Models 
 
-The models we settled on are inspired by the Bayesian analysis on the motivational shifts in agin monkeys (add citation here). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covarity, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we can say that population density is almost constant for each country and identify it as a group-level covarity. Lastly, our individual-level covarity is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distribution.  
+The models we settled on are inspired by the Bayesian analysis on the motivational shifts in aging monkeys (add citation here). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covarity, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we assume that population density is almost constant for each country and identify it as a group-level covarity. Lastly, our individual-level covarity is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distribution.  
 
 ### Pooled
 
-In the pooled approach, we assume that there is no difference between countries. We therefore consider the dataset of observations as a whole, and assume that in a linear regression approach the coefficient and parameters are shared among the countries. Let's assume that our Case observations $j$ can be modeled as normal distribution whose mean depends on the month_diff and the population density. This is shown as reported below: 
+In the pooled approach, we assume that there is no difference between countries. We therefore consider the dataset of observations as a whole, and assume that in a linear regression approach the coefficient and parameters are shared among the countries. We argue that Cases observations $j$ can be modeled as normal distribution whose mean depends on the month_diff and the population density. This is shown as reported below: 
 
 $$
 
@@ -88,70 +96,30 @@ We want weakly information or uninformative priors for this model, as long as th
 
 $$
 
-\mu \sim N(0, 10000)\\
-\beta_{pop\_den} \sim N(5000, 2000) \\
-\beta_{month\_diff} \sim N(5000, 2000)\\
-\beta_{pop\_den, month\_diff} \sim N(5000, 2000)\\
-\sigma \sim gamma(1,1)
+\mu \sim N(0, 100000)\\
+\beta_{pop\_den} \sim N(60, 10000) \\
+\beta_{month\_diff} \sim N(0, 10000)\\
+\beta_{pop\_den, month\_diff} \sim N(0, 10000)\\
+\sigma \sim gamma(100,1/1000)
 $$
-The stan model is reported below: 
-
-```{stan output.var='pooled'}
-data {
-  int<lower=0> N; // number of observations
-  vector[N] month; //vector of months_diff
-  vector[N] pop_den; //population density
-  vector[N] cases;
-}
-
-parameters {
-  real mu;
-  real beta_month;
-  real beta_pop;
-  real beta_month_pop;
-  real<lower=0> sigma;
-}
-
-model {
-
-  // Priors
-  mu ~ normal(0, 10000);
-  beta_month ~ normal(5000, 2000);
-  beta_pop ~ normal(5000,2000);
-  beta_month_pop ~ normal(5000,2000);
-  sigma ~ gamma(1, 1);
-  
-
-  for (i in 1:N){
-    cases[i] ~ normal(mu + beta_month*month[i] + beta_pop*pop_den[i] + beta_month_pop*month[i]*pop_den[i], sigma);
-  }
-}
-
-generated quantities {
-  real ypred;
-  vector[N] log_lik;
-  
-  ypred = normal_rng(mu, sigma); // pooled predictive distribution 
-  
-  for(i in 1:N)
-    {
-      log_lik[i] = normal_lpdf(cases[i] | mu + beta_month*month[i] + beta_pop*pop_den[i] + beta_month_pop*month[i]*pop_den[i], sigma);
-   }
-
-}
-
-```
-
+Where the second gamma parameter refers to the rate. The stan model is reported below: 
 
 ```{r}
-stan_data <- list(
+writeLines(readLines('pooled.stan'))
+
+```
+```{r}
+stan_data_pooled <- list(
   cases = data$Cases,
   N = nrow(data),
   month=data$months_diff,
   pop_den=data$Pop_den
 )
-pooled_model <- rstan::sampling(pooled, data = stan_data)
-pooled_draws <- rstan::extract(pooled_model)
+
+
+pooled <- cmdstan_model(stan_file = "pooled.stan")
+model_pooled <- pooled$sample(data = stan_data_pooled, refresh=1000)
+
 ```
 
 
@@ -170,7 +138,7 @@ Cases_{ij}| \mu_j, \beta, \sigma \sim N(\mu_j + \beta_{pop\_den_j} pop\_den_{ij}
 \\
 \\
 \\
-\sigma \sim gamma(1,1)\\
+\sigma \sim gamma(100,1/1000)\\
 \mu_j \sim N(\mu_h,\tau)\\
 \beta_{pop\_den_j} \sim N(\beta_{hpop\_den}, \tau_{hpop\_den})\\
 \beta_{month, pop\_den_j}\sim N(\beta_{hmonth, pop\_den}, \tau_{hmonth,pop})\\
@@ -181,152 +149,29 @@ Cases_{ij}| \mu_j, \beta, \sigma \sim N(\mu_j + \beta_{pop\_den_j} pop\_den_{ij}
 \text{Hyperprios}\\
 \\
 \\
-\mu_h \sim N(0, 10000) \\
-\tau \sim gamma(1,1) \\
+\mu_h \sim normal(1000, 10000)\\
+\tau \sim gamma(10000,1) \\
 
-\beta_{hpop\_den} \sim N(2000, 50000)\\
-\beta_{hmonth, pop\_den} \sim N(2000, 50000)\\
-\beta_{hmonth} \sim N(2000, 30000)\\
+\beta_{hpop\_den} \sim N(60, 10000)\\
+\beta_{hmonth, pop\_den} \sim N(0, 10000)\\
+\beta_{hmonth} \sim N(0, 10000)\\
 
-\tau_{hpop\_den} \sim gamma(1,1)\\
-\tau_{hmonth,pop\_den} \sim gamma(1,1)\\
-\tau_{month} \sim gamma(1,1)\\
+\tau_{hpop\_den} \sim gamma(10000,1)\\
+\tau_{hmonth,pop\_den} \sim gamma(10000,1)\\
+\tau_{month} \sim gamma(10000,1)\\
 
 
 $$
 
 
-```{stan output.var='hierarchical'}
-data {
-  int<lower=0> M; //number of countries
-  int<lower=0> N;//max number of obs across all the countries
-  
-  vector[M] month[N];//vector of months
-  vector[M] pop_den[N];//population density
-  vector[M] cases[N];
-  
-}
+The stan code for the hierarchical model can be observed below. 
 
-parameters {
-  vector[M] mu;
-  vector[M] beta_month;
-  vector[M] beta_pop;
-  vector[M] beta_month_pop;
-  real<lower=0>sigma;
-  real<lower=0> tau;
-  real hyper_mu;
-  real hyper_beta_month;
-  real hyper_beta_pop;
-  real hyper_beta_month_pop;
- 
-}
-
-model {
-
-  tau ~ gamma(1,1);
-  sigma ~ gamma(1,1);
-  hyper_mu ~ normal(0, 10000);
-  hyper_beta_pop ~ normal(2000,5000);
-  hyper_beta_month ~ normal(2000,5000);
-  hyper_beta_month_pop ~ normal(2000,5000);
-
-  for (j in 1:M){
-    mu[j] ~ normal(hyper_mu, tau);
-    beta_month[j] ~ normal(hyper_beta_month, tau);
-    beta_pop[j] ~ normal(hyper_beta_pop, tau);
-    beta_month_pop[j] ~ normal(hyper_beta_month_pop, tau);
-  
-    for (n in 1:N){
-      cases[n,j] ~ normal(mu[j] + beta_month[j]*month[n,j] + beta_pop[j]*pop_den[n,j] + beta_month_pop[j]*month[n,j]*pop_den[n,j], sigma);
-    }
-  }
-}
-
-generated quantities {
-  
-  vector[M] log_lik[N];
-  
-  for (j in 1:M){
-    for(i in 1:N){
-      log_lik[i,j] = normal_lpdf(cases[i,j] | mu[j] + beta_month[j]*month[i,j] + beta_pop[j]*pop_den[i,j] + beta_month_pop[j]*month[i,j]*pop_den[i,j], sigma);
-   }
-  }
-}
-
-
-
-```
-
-
-
-
-```{stan output.var='hierarchical_mod'}
-data {
-  int<lower=0> M; //number of countries
-  int<lower=0> N;//max number of obs across all the countries
-  
-  vector[M] month[N];//vector of months
-  vector[M] pop_den[N];//population density
-  vector[M] cases[N];
-  
-}
-
-parameters {
-  vector[M] mu;
-  real beta_month;
-  real beta_pop;
-  real beta_month_pop;
-  real<lower=0>sigma;
-  real<lower=0> tau;
-  real hyper_mu;
-
- 
-}
-
-model {
-
-  tau ~ gamma(1,1);
-  sigma ~ gamma(1,1);
-  hyper_mu ~ normal(0, 10000);
-  beta_month ~ normal(5000, 2000);
-  beta_pop ~ normal(5000,2000);
-  beta_month_pop ~ normal(5000,2000);
-
-  for (j in 1:M){
-    mu[j] ~ normal(hyper_mu, tau);
-  
-    for (n in 1:N){
-      cases[n,j] ~ normal(mu[j] + beta_month*month[n,j] + beta_pop*pop_den[n,j] + beta_month_pop *month[n,j]*pop_den[n,j], sigma);
-    }
-  }
-}
-
-generated quantities {
-  
-  vector[M] log_lik[N];
-  
-  for (j in 1:M){
-    for(i in 1:N){
-      log_lik[i,j] = normal_lpdf(cases[i,j] | mu[j] + beta_month*month[i,j] + beta_pop *pop_den[i,j] + beta_month_pop *month[i,j]*pop_den[i,j], sigma);
-   }
-  }
-}
-
-
-
-```
 ```{r}
-#make_dataframe = function(col_name, df){
-  #new_df = data.frame(matrix(nrow=8))
-  
-  #for (country in Countries){
-    #new_country_col <- df[df$Country == country, col_name]
-    #n_obs <- length(new_country_col)
-    #new_df[country] <- c(new_country_col, rep(-200, max_obs-n_obs))
-  #}
-  #return(new_df[,2:length(new_df)])
-#}
+writeLines(readLines("hier.stan"))
+```
 
+We feed the model the data in the form of 17x8 matrices, where the columns represent the coutries and the rows the observations.  
+```{r}
 
 months<- matrix(nrow = 8, ncol = 17)
 pop_den <- matrix(nrow = 8, ncol = 17)
@@ -336,8 +181,6 @@ cases <- matrix(nrow = 8, ncol = 17)
 row_count <- 1
 for (i in 1:8){
   for (j in 1:17){
-    #print(i)
-    #print(j)
     months[i,j] = data$months_diff[row_count]
     pop_den[i,j] = data$Pop_den[row_count]
     cases[i,j] = data$Cases[row_count]
@@ -356,8 +199,8 @@ stan_data_hier <- list(
   month=t(months),
   pop_den=t(pop_den)
 )
-hier_d <- cmdstan_model(stan_file = "hier.stan")
-model_hierarchical <- hier_d$sample(data = stan_data_hier, refresh=1000)
+hier <- cmdstan_model(stan_file = "hier.stan")
+model_hier <- hier$sample(data = stan_data_hier, refresh=1000)
 
 ```
 
@@ -366,68 +209,107 @@ model_hierarchical <- hier_d$sample(data = stan_data_hier, refresh=1000)
 ## Prior choices
 
 ### Pooled model
-For the pooled model, we define the priors for $\mu$, $\sigma$, $\beta_{pop\_den}$, $\beta_{month}$, $\beta_{month, pop\_den}$. For $\mu$ we decided on $\mu \sim N(0, 100000)$, reasoning that the intercept of cases should be 0 and the sd needs to be sufficiently large to be uninformative. The choice of 0 as the mean is grounded by the fact that the new ebola outbreak started in 2014, so we assume that any months following the ones in our dataset had no ebola cases. We assign a large standard deviation to account for the possibility of still having cases before the start of our timeline. 
 
-We chose $\sigma \sim$. 
+For the pooled model, we define the priors for $\mu$, $\sigma$, $\beta_{pop\_den}$, $\beta_{month}$, $\beta_{month, pop\_den}$. 
 
-We chose $\beta_{pop\_den} \sim N(60, 10000)$. We center it at 60 since this the average population density in the entire world, and give it a sd of 10000 to make it sufficiently uninformative.
+For $\mu$ we decided on $\mu \sim N(0, 100000)$, reasoning that the intercept of cases should be 0 and the standard deviation needs to be sufficiently large to be uninformative. The choice of 0 as the mean is grounded by the fact that the new ebola outbreak started in 2014, so we assume that any months following the ones in our dataset had no ebola cases. We assign a large standard deviation to account for the possibility of still having cases before the start of our timeline. 
+
+We chose $\sigma \sim gamma(100, 1/1000)$, which yields a mean of $10^6$ and a variance of $1^8$. We reason that sigma should have a large mean and and a large variance, as well as being positive. Since the number of cases is in the order of $10^5$, we require sigma to be significantly larger than this to be uninformative. 
+
+We chose $\beta_{pop\_den} \sim N(60, 10000)$. We center it at 60 since this the average population density in the entire world, and give it a standard deviation of 10000 to make it sufficiently uninformative. The choice of 60 lies in the idea of disease spreading in networks, where the upper bound of new diseases in a kilometer square is equivalent to the the population density. 
 We chose $\beta_{month} \sim N(0, 10000)$ as a sufficiently uninformative prior, since it detains no assumptions about the sign or magnitude of the parameter. 
 We also chose $\beta_{month, pop\_den} \sim N(0,10000)$ arguing that we cannot make any assumption about the sign and the magnitude of this parameter. 
 
 
 
 ### Hierarchical model
-For the hierarchical model, we chose our hyperpriors analogously to our prior choices in the pooled mode. 
-For $\mu_h$ we decided on $\mu_h \sim N(0, 100000)$, reasoning that the intercept of cases should be 0 and the sd needs to be sufficiently large to be uninformative.
-We chose $\beta_{hpop\_den} \sim N(60, 10000)$. We center it at 60 since this the average population density in the entire world, and give it a sd of 10000 to make it sufficiently uninformative.
-We chose $\beta_{hmonth} \sim N(0, 10000)$ as a sufficiently uninformative prior, since it detains no assumptions about the sign or magnitude of the parameter. 
-We also chose $\beta_{hmonth, pop\_den} \sim N(0,10000)$ arguing that we cannot make any assumption about the sign and the magnitude of this parameter. 
-We
 
 
-
-
+For the hierarchical model, we chose our hyperpriors to be uninformative and proper. 
+For $\mu_h$ we decided on $\mu_h \sim gamma(1, 1/100)$, giving us a mean of 100 and a variance of 10000. We keep the shared sigma the same as in the pooled model, $\sigma \sim gamma(100, 1/1000)$. 
+For the $\tau$ parameters we argue that it should be positive with a large variance and large enough mean. We assign it as $\tau \sim gamma(10000,1)$, which yields a mean of 10000 and a variance of 10000. 
+We apply the same reasoning made for our beta priors in the pooled model to our beta hyperpriors: we chose $\beta_{hpop\_den} \sim N(60, 10000)$, $\beta_{hmonth} \sim N(0, 10000)$ and $\beta_{hmonth, pop\_den} \sim N(0,10000)$. We also identify all hyper $\tau$s for the $\betas$ as $gamma(10000,1)$ distributions. 
 
 ## Convergence analysis
 
-!Note: add about ESS
-
-In this section, we evaluate that our models have reached convergence by observing the value of $\hat{R}$. If this parameter is close to 1, we can safely assume that our MCMC has reached convergence. 
+In this section, we evaluate that our models have reached convergence by observing the value of $\hat{R}$. If this parameter is close to 1, we can safely assume that our MCMC has reached convergence. We also analyze the model performances by their ESS values. 
 
 ### Pooled 
 
 ```{r}
-summary(pooled_model)
+model_pooled$summary(variables = c("mu", "beta_month", "beta_pop", "beta_month_pop", 'sigma', 'ypred'), "rhat", "ess_bulk")
+```
+
+```{r}
+model_pooled$cmdstan_diagnose()
 ```
 
 ### Hierarchical
 
 ```{r}
-
+model_hier$summary(variables = c("mu", "beta_month", "beta_pop", "beta_month_pop", 'sigma', 'ypred'), "rhat", "ess_bulk")
 ```
+
+```{r}
+model_hier$cmdstan_diagnose()
+```
+Initially we had $\mu_h \sim gamma(1, 0.01)$, which resulted into almost all transition diverging and three fourth of our parameters to fail convergency according to the $\hat{R}$ diagnostic. The reason for this is probably related to the fact that this prior was too narrow and informative, and changing it to more uninformative prior helped with convergence. 
 
 ## Model selection 
 
+We use the loo function to observe the k-values of our models and compare them based on their elpd difference. We select the best model based on the elpd comparison results and analyze the reliability of each model by observing the proportion of k-values < 0.7. 
 
 ```{r}
 library("loo")
 
-loo_pooled <- loo(pooled_model,save_psis=TRUE)
+loo_pooled <-model_pooled$loo()
 print(loo_pooled)
-
-plot(loo_pooled)
-
 ```
+```{r}
+library("loo")
+
+loo_hier <-model_hier$loo()
+print(loo_hier)
+```
+
 
 ```{r}
+col_names_lik_hier <- c()
+col_names_lik_pool <- c()
+i = 1
+for (n in 1:17) {
+  for (m in 1:8) {
+    col_name <- paste("log_lik[", n, ",",m, "]", sep = "")
+    col_names_lik_hier <- c(col_names_lik_hier,col_name)
+    col_pool <- paste("log_lik[",i,"]", sep="")
+    col_names_lik_pool <- c(col_names_lik_pool, col_pool)
+    i <- i +1
+  }
+}
 
-loo_hier<- model_hierarchical$loo()
-print(loo_hier)
-
-plot(loo_hier)
-
-print(loo_hier$elpd_loo)
 ```
+```{r}
+pol_draws <- model_pooled$draws(format = "df")
+hier_draws <- model_hier$draws(format = "df")
+```
+```{r}
+loo_hier<- loo(data.matrix(hier_draws[, col_names_lik_hier]))
+
+loo_pol<- loo(data.matrix(pol_draws[, col_names_lik_pool]))
+
+com <- loo_compare(loo_pol, loo_hier)
+com
+```
+To get a clearer idea 
+```{r}
+library("loo")
+
+loo_pooled <-model_pooled$loo()
+print(loo_pooled)
+```
+
+
+
 ## Posterior predictive checks ?
 
 
@@ -437,6 +319,12 @@ print(loo_hier$elpd_loo)
  
  
 ## Discussion 
+
+1) We assume a linear model, whereas the model is most likely quadatic
+2) We assume there is no correlation between parameters
+3) We only analyze the hierarchical and pooled model, but it could be argued that the separate model might achieve equally good if not better results. 
+
+
 
 ## Conclusion
 
