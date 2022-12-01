@@ -83,7 +83,8 @@ As can be observed from the panels above, there is obvious relationship between 
 
 ## Models 
 
-The models we settled on are inspired by the Bayesian analysis on the motivational shifts in aging monkeys (add citation here). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covarity, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we assume that population density is almost constant for each country and identify it as a group-level covarity. Lastly, our individual-level covarity is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distribution.  
+The models we settled on are inspired by the Bayesian analysis on the motivational shifts in aging monkeys (add citation here). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covarity, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we assume that population density is almost constant for each country and identify it as a group-level covarity. Lastly, our individual-level covarity is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distribution.  We run the models using cmdstan. For the MCMC attributes, we decided to use using the cmdstan defaults: that is, we use 4 chains, each having chain length 2000 and a burn-in of 1000. We agreed that four chains and chain length of 1000 after burn-in should be sufficient for the dataset we are using. The convergence analysis in the "Convergence analysis" section discusses the convergence of the parameters in the models more in detail. 
+
 
 ### Pooled
 
@@ -258,7 +259,7 @@ model_hier$cmdstan_diagnose()
 As can be observed, with the current parametrization, the MCMCs for our hierarchical models had no divergent transitions, and the $\hat{R}$ and $SSE$ metrics for our parameter are satisfactory. We may therefore assume that our chains have converged and the model is satisfactory. 
 Initially we had a hyperprior $\mu_h \sim gamma(1, 0.01)$, which resulted into almost all transition diverging and three fourth of our parameters to fail convergence according to the $\hat{R}$ diagnostic. The reason for this was probably related to the fact that this prior was too narrow and informative. After chaning it to a more wide prior $\mu_h \sim N(1000, 10000)$ the MCMCs performed significantly better. 
 
-## Model selection 
+## Model comaparison 
 
 We use the loo function to observe the k-values of our models and compare them based on their elpd difference. We select the best model based on the elpd comparison results and analyze the reliability of each model by observing the proportion of k-values < 0.7. 
 
