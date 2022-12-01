@@ -44,9 +44,9 @@ model {
 
   for (j in 1:M){
     mu[j] ~ normal(hyper_mu, tau);
-    beta_month[j] ~ normal(hyper_beta_month, tau);
-    beta_pop[j] ~ normal(hyper_beta_pop, tau);
-    beta_month_pop[j] ~ normal(hyper_beta_month_pop, tau);
+    beta_month[j] ~ normal(hyper_beta_month, hyper_tau_month);
+    beta_pop[j] ~ normal(hyper_beta_pop, hyper_tau_pop);
+    beta_month_pop[j] ~ normal(hyper_beta_month_pop, hyper_tau_month_pop);
   
     for (n in 1:N){
       cases[n,j] ~ normal(mu[j] + beta_month[j]*month[n,j] + beta_pop[j]*pop_den[n,j] + beta_month_pop[j]*month[n,j]*pop_den[n,j], sigma);
