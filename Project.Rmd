@@ -1,8 +1,10 @@
 ---
 title: "BDA-Project"
-output: html_document
-bibliography: references.bib
+output:
+  pdf_document: default
+  html_document: default
 date: "2022-11-10"
+bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -39,17 +41,8 @@ $$
 I(t)=\mu+\beta_{pop\_den}\times \text{population density} + (\beta_{month\_diff}+ \beta_{pop\_den,month\_diff} \times \text{population density}) \times t
 $$
 As a result, we use the population density of the country, and number of months passed from the start of the pandemic as our predictors to model the number of Ebola cases. 
-
- 
-
--the problem
--and the main modeling idea.
-
-The main modeling idea in inspired by 
-
-
--Showing some illustrative figure is recommended.
 In the following section, more information on the Data can be found with explanatory illustrative figures. 
+
 ## Data
 
 ### Data preprocessing
@@ -85,7 +78,7 @@ table(data$months_diff)
 ```
 A more illustrative representation of the dataset can be seen from the scatter plots of below. In the top panels, we do not distinguish between countries. In the bottom panels, we differentiate between the observations of different countries by color. A small jitter is added to all graph to highlight overlapped points.  
 
-```{r}
+```{r, include=FALSE}
 library("ggplot2")
 #install.packages("gridExtra") 
 library("gridExtra")
@@ -108,7 +101,7 @@ As can be observed from the panels above, there is obvious relationship between 
 
 ## Models 
 
-The models we settled on are inspired by the study "A First Look at Multilevel Regression; or {Everybody’s} Got Something to Hide Except Me and My Macaque" (@simpson2022). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covarity, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we assume that population density is almost constant for each country and identify it as a group-level covarity. Lastly, our individual-level covarity is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distributions.  We run the models using cmdstan. For the MCMC attributes, we decided to use using the cmdstan defaults: that is, we use 4 chains, each having chain length 2000 and a burn-in of 1000. We agreed that four chains and chain length of 1000 after burn-in should be sufficient for the dataset we are using. The convergence analysis in the "Convergence analysis" section discusses the convergence of the parameters in the models more in detail, where we observed that both the pooled and the hierarchical models reach convergence with the given cmdstan settings. 
+The models we settled on are inspired by the study "A First Look at Multilevel Regression; or {Everybody’s} Got Something to Hide Except Me and My Macaque" (@simpson2022). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covariate, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we assume that population density is almost constant for each country and identify it as a group-level covariate. Lastly, our individual-level covariate is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distributions. We run the models using cmdstan. For the MCMC attributes, we decided to use using the cmdstan defaults: that is, we use 4 chains, each having chain length 2000 and a burn-in of 1000. We agreed that four chains and chain length of 1000 after burn-in should be sufficient for the dataset we are using. The convergence analysis in the "Convergence analysis" section discusses the convergence of the parameters in the models more in detail, where we observed that both the pooled and the hierarchical models reach convergence with the given cmdstan settings. 
 
 
 ### Pooled
@@ -116,24 +109,26 @@ The models we settled on are inspired by the study "A First Look at Multilevel R
 In the pooled approach, we assume that there is no difference between countries. We therefore consider the dataset of observations as a whole, and assume that in a linear regression approach the coefficient and parameters are shared among the countries. We argue that Cases observations $j$ can be modeled as normal distribution whose mean depends on the month_diff and the population density. This is shown as reported below: 
 
 $$
-
-Cases_j \sim N(\mu + \beta_{pop\_den}pop\_den_{j} + \beta_{month\_diff}month\_diff_j + \beta_{pop\_den,month\_diff} pop\_den_j \times month\_diff_j, \sigma^2)
+\begin{aligned}
+Cases_j &\sim N(\mu + \beta_{pop\_den}pop\_den_{j} + \beta_{month\_diff}month\_diff_j + \beta_{pop\_den,month\_diff} pop\_den_j \times month\_diff_j, \sigma^2)
+\end{aligned}
 $$
-Following the pooled model approach, the parameter $\mu$, $\beta_{pop\_den}$, $\beta_{month\_diff}$, $\beta_{pop\_den,month\_diff}$ and $\sigma$ defining the normal distribution are drawn from the same prior distributions for every observation $\Cases_j$. 
+Following the pooled model approach, the parameter $\mu$, $\beta_{pop\_den}$, $\beta_{month\_diff}$, $\beta_{pop\_den,month\_diff}$ and $\sigma$ defining the normal distribution are drawn from the same prior distributions for every observation $Cases_j$. 
 
 We want weakly information or uninformative priors for this model, as long as they are proper priors. More information on prior choices will be given in the "Prior choices" section. We define these priors as: 
 
 $$
-
-\mu \sim N(0, 100000)\\
-\beta_{pop\_den} \sim N(60, 10000) \\
-\beta_{month\_diff} \sim N(0, 10000)\\
-\beta_{pop\_den, month\_diff} \sim N(0, 10000)\\
-\sigma \sim gamma(100,0.001)
+\begin{aligned}
+\mu &\sim N(0, 100000)\\
+\beta_{pop\_den} &\sim N(60, 10000) \\
+\beta_{month\_diff} &\sim N(0, 10000)\\
+\beta_{pop\_den, month\_diff} &\sim N(0, 10000)\\
+\sigma &\sim gamma(100,0.001)
+\end{aligned}
 $$
 Where the second gamma parameter refers to the rate of the gamma distribution. The stan model is reported below: 
 
-```{r}
+```{r,results='hide', message=FALSE}
 writeLines(readLines('pooled.stan'))
 
 ```
@@ -158,38 +153,34 @@ In the hierarchical approach, we do not assume shared priors as in the pooled ap
 
 
 $$
+\begin{aligned}
+Cases_{ij}| \mu_j, \beta, \sigma &\sim N(\mu_j + \beta_{pop\_den_j} pop\_den_{ij} + \beta_{month_j}month_{ij} + \beta_{month, pop\_den_j} month_{ij} \times pop\_den_{ij}, \sigma^2)
+\end{aligned}
+$$
+Priors:
 
-Cases_{ij}| \mu_j, \beta, \sigma \sim N(\mu_j + \beta_{pop\_den_j} pop\_den_{ij} + \beta_{month_j}month_{ij} + \beta_{month, pop\_den_j} month_{ij} \times pop\_den_{ij}, \sigma^2)\\
+$$
+\begin{aligned}
+\sigma &\sim gamma(100,0.001)\\
+\mu_j &\sim N(\mu_h,\tau)\\
+\beta_{pop\_den_j} &\sim N(\beta_{hpop\_den}, \tau_{hpop\_den})\\
+\beta_{month, pop\_den_j} &\sim N(\beta_{hmonth, pop\_den}, \tau_{hmonth,pop})\\
+\beta_{month_j} &\sim N(\beta_{hmonth}, \tau_{month})
+\end{aligned}
+$$
+Hyper-priors:
 
-\\
-\\
-\text{Priors}\\
-\\
-\\
-\\
-\sigma \sim gamma(100,1/1000)\\
-\mu_j \sim N(\mu_h,\tau)\\
-\beta_{pop\_den_j} \sim N(\beta_{hpop\_den}, \tau_{hpop\_den})\\
-\beta_{month, pop\_den_j}\sim N(\beta_{hmonth, pop\_den}, \tau_{hmonth,pop})\\
-\beta_{month_j}\sim N(\beta_{hmonth}, \tau_{month})\\
-\\
-\\
-\\
-\text{Hyperprios}\\
-\\
-\\
-\mu_h \sim normal(1000, 10000)\\
-\tau \sim gamma(10000,1)\\
-
-\beta_{hpop\_den} \sim N(60, 10000)\\
-\beta_{hmonth, pop\_den} \sim N(0, 10000)\\
-\beta_{hmonth} \sim N(0, 10000)\\
-
-\tau_{hpop\_den} \sim gamma(10000,1)\\
-\tau_{hmonth,pop\_den} \sim gamma(10000,1)\\
-\tau_{month} \sim gamma(10000,1)\\
-
-
+$$
+\begin{aligned}
+\mu_h &\sim normal(1000, 10000)\\
+\tau &\sim gamma(10000,1)\\
+\beta_{hpop\_den} &\sim N(60, 10000)\\
+\beta_{hmonth, pop\_den} &\sim N(0, 10000)\\
+\beta_{hmonth} &\sim N(0, 10000)\\
+\tau_{hpop\_den} &\sim gamma(10000,1)\\
+\tau_{hmonth,pop\_den} &\sim gamma(10000,1)\\
+\tau_{month} &\sim gamma(10000,1)\\
+\end{aligned}
 $$
 
 
@@ -243,7 +234,7 @@ For the pooled model, we define the priors for $\mu$, $\sigma$, $\beta_{pop\_den
 
 For $\mu$ we decided on $\mu \sim N(0, 100000)$, reasoning that the intercept of cases should be 0 and the standard deviation needs to be sufficiently large to be uninformative. The choice of 0 as the mean is grounded by the fact that the new ebola outbreak started in 2014, so we assume that any months following the ones in our dataset had no ebola cases. We assign a large standard deviation to account for the possibility of still having cases before the start of our timeline. 
 
-We chose $\sigma \sim gamma(100, 1/1000)$, which yields a mean of $10^6$ and a variance of $1^8$. We reason that sigma should have a large mean and and a large variance, as well as being positive. Since the number of cases is in the order of $10^5$, we require sigma to be significantly larger than this to be uninformative. 
+We chose $\sigma \sim gamma(100, 0.001)$, which yields a mean of $10^6$ and a variance of $1^8$. We reason that sigma should have a large mean and and a large variance, as well as being positive. Since the number of cases is in the order of $10^5$, we require sigma to be significantly larger than this to be uninformative. 
 
 We chose $\beta_{pop\_den} \sim N(60, 10000)$. We center it at 60 since this the average population density in the entire world, and give it a standard deviation of 10000 to make it sufficiently uninformative. The choice of 60 lies in the idea of disease spreading in networks, where the upper bound of new diseases in a kilometer square is equivalent to the the population density. 
 We chose $\beta_{month} \sim N(0, 10000)$ as a sufficiently uninformative prior, since it detains no assumptions about the sign or magnitude of the parameter. 
@@ -251,20 +242,16 @@ We also chose $\beta_{month, pop\_den} \sim N(0,10000)$ arguing that we cannot m
 
 ### Hierarchical model
 
-For the hierarchical model, we chose our hyperpriors to be uninformative and proper. 
+For the hierarchical model, we chose our hyper priors to be uninformative and proper. 
 For $\mu_h$ we decided on $\mu_h \sim N(100, 10000)$, giving us a sufficiently wide and uninformative distribution. We keep the shared sigma the same as in the pooled model, $\sigma \sim gamma(100, 1/1000)$. 
 For the $\tau$ parameters we argue that it should be positive with a large variance and large enough mean. We assign it as $\tau \sim gamma(10000,1)$, which yields a mean of 10000 and a variance of 10000. 
-We apply the same reasoning made for our beta priors in the pooled model to our beta hyperpriors: we chose $\beta_{hpop\_den} \sim N(60, 10000)$, $\beta_{hmonth} \sim N(0, 10000)$ and $\beta_{hmonth, pop\_den} \sim N(0,10000)$. We also identify all hyper $\tau$s for the $\beta$ parameters as $gamma(10000,1)$ distributions. 
+We apply the same reasoning made for our beta priors in the pooled model to our beta hyper priors: we chose $\beta_{hpop\_den} \sim N(60, 10000)$, $\beta_{hmonth} \sim N(0, 10000)$ and $\beta_{hmonth, pop\_den} \sim N(0,10000)$. We also identify all hyper $\tau$s for the $\beta$ parameters as $gamma(10000,1)$ distributions. 
 
 ## Convergence analysis
 
-In this section, we evaluate that our models have reached convergence by observing the value of $\hat{R}$. If this parameter is close to 1, we can safely assume that our MCMC has reached convergence. We also analyze the model performances by their ESS values. Normally, we would observe the Rhat values and ESS values for each parameter, and possibly evalaute chain plots to visually observe whether our chains have converged. Since our models are heavily parametrized, doing so for every individual parameter would be inefficient. Instead, we run the command cmdstan_diagnose() on our pooled and hierarchical models. This will tell us whether there were divergent transitions in the MCMCs, whether the $\hat{R}$ for each parameter is satisfactory (sufficiently close to 1) and whether the effective samples size ESS for each parameter is also satisfactory. 
+In this section, we evaluate that our models have reached convergence by observing the value of $\hat{R}$. If this parameter is close to 1, we can safely assume that our MCMC has reached convergence. We also analyze the model performances by their ESS values. Normally, we would observe the Rhat values and ESS values for each parameter, and possibly evaluate chain plots to visually observe whether our chains have converged. Since our models are heavily parametrized, doing so for every individual parameter would be inefficient. Instead, we run the command cmdstan_diagnose() on our pooled and hierarchical models. This will tell us whether there were divergent transitions in the MCMCs, whether the $\hat{R}$ for each parameter is satisfactory (sufficiently close to 1) and whether the effective samples size ESS for each parameter is also satisfactory. 
 
 ### Pooled 
-
-```{r}
-model_pooled$summary(variables = c("mu", "beta_month", "beta_pop", "beta_month_pop", 'sigma', 'ypred'), "rhat", "ess_bulk")
-```
 
 ```{r}
 model_pooled$cmdstan_diagnose()
@@ -272,10 +259,6 @@ model_pooled$cmdstan_diagnose()
 We observe that there were no divergent transitions found in the MCMC computation for the pooled model, and that both the ESS and $\R{hat}$ values are satisfactory. We can assume that our MCMC for the pooled model have reached convergence and that the model parametrization is adequate.
 
 ### Hierarchical
-
-```{r}
-model_hier$summary(variables = c("mu", "beta_month", "beta_pop", "beta_month_pop", 'sigma', 'ypred'), "rhat", "ess_bulk")
-```
 
 ```{r}
 model_hier$cmdstan_diagnose()
@@ -350,7 +333,7 @@ the predictive distribution is given by
 
 $$
 \begin{aligned}
-p(\hat{y} |y, X) \sim \int p(\hat{y}|\theta, X) p(\theta|y, X) d \theta.
+p(\hat{y} |y, X) &\sim \int p(\hat{y}|\theta, X) p(\theta|y, X) d \theta.
 \end{aligned}
 $$
 
@@ -432,27 +415,31 @@ $\textbf{The hierarchical model:}$
 The hierarchical model is a better model for analyzing our data (Model Selection section). To check the sensitivity of this model to the choice of priors, we try different priors for this model. Because we have so many hyperparameters, we evaluate the effect of the prior distribution only on the posterior distributions of the directly affected parameters. The first section of priors is as below, keeping all else equal (colored red in the graphs):
 
 $$
+\begin{aligned}
 hyper\_tau\_pop \sim gamma(10000,10)\\
 hyper\_tau\_month \sim gamma(1000,10)\\
 hyper\_tau\_month\_pop \sim gamma(1000,10)
+\end{aligned}
 $$
 Which we also change to the following set (colored blue in the graph), keeping all else equal: 
 
 $$
-hyper\_tau\_pop \sim normal(10000,100000)\\
-hyper\_tau\_month \sim normal(10000,10000)\\
-hyper\_tau\_month\_pop \sim normal(10000,10000)
+\begin{aligned}
+hyper\_tau\_pop &\sim N(10000,10000)\\
+hyper\_tau\_month &\sim N(10000,10000)\\
+hyper\_tau\_month\_pop &\sim N(10000,10000)
+\end{aligned}
 $$
 And lastly we change the hyper betas instead of the taus (colored yellow in the graph),keeping all else equal, as follows: 
 $$
-hyper\_beta\_pop \sim N(60,1000)\\
-hyper\_beta\_month \sim N(10,10000)\\
-hyper\_beta\_month\_pop \sim N(10,10000)
+hyper\_beta\_pop &\sim N(60,1000)\\
+hyper\_beta\_month &\sim N(10,10000)\\
+hyper\_beta\_month\_pop &\sim N(10,10000)
 $$
 We compare these two set of changes with the beta posteriors achieved whit the hyperprior parameters used in the model section (colored green in the graph).
 We select country 6 to evaluate the difference on the posterior distributions of our $\beta$s between these new hyperpriors and the hyperpriors chosen in the model section. Running the model with these parameters:
 
-```{r,include=FALSE}
+```{r,echo=T, results='hide'}
 stan_data_hier <- list(
   cases = t(cases),
   N = 17,
@@ -468,7 +455,9 @@ hier_4 <- cmdstan_model(stan_file = "hier_sen4.stan")
 model_hier_4 <- hier_4$sample(data = stan_data_hier, refresh=1000)
 ```
  
-```{r}
+```{r, echo=T}
+m <- matrix(c(1,2,3,4,5,6,7,7,7),nrow = 3, byrow = TRUE)
+layout(mat = m,heights = c(0.4,0.4,0.2))
 par(mfrow=c(3,1))
 hier_1_draws <- model_hier_1$draws(format='df')
 hier_3_draws <- model_hier_3$draws(format='df')
@@ -484,15 +473,16 @@ lines(density(hier_draws$`beta_pop[6]`), col='green')
 lines(density(hier_3_draws$`beta_pop[6]`), col='blue')
 lines(density(hier_4_draws$`beta_pop[6]`), col='yellow')
 plot(density(hier_1_draws$`beta_month_pop[6]`), col='red',
-main="Posterior distribution of beta_month[6]")
+main="Posterior distribution of beta_month_pop[6]")
 lines(density(hier_draws$`beta_month_pop[6]`), col='green')
 lines(density(hier_3_draws$`beta_month_pop[6]`), col='blue')
 lines(density(hier_4_draws$`beta_month_pop[6]`), col='yellow')
 
 
-legend(1, 95, legend=c("ht~gamma(10000,10)", "ht~N(10000,100000)", "ht~gamma(10000,1)", "hb~N(60,1000) for pop and N(10,10000) for others"),
-       col=c("red", "blue", "green", "yellow"), lty=1:2, cex=0.8)
+legend(x = "bottom",inset = 0,legend=c("htp~gamma(10000,10) hto~gamma(1000,10)", "ht~N(10000,100000)", "ht~gamma(10000,1)", "hbp~N(60,1000) and hbo~N(10,10000)"),
+       col=c("red", "blue", "green", "yellow"), lwd=5, cex=.5, horiz = TRUE)
 ```
+In the graph, htp stands for hyper tau pop, and hto stands for hyper tau others (when the hyper distributions are not all the same). Observing the graphs, we note that the posteriors drawn from the hyper beta taus $\tau \sim (10000, 1)$ we use in our model (shown in yellow, where we change only the hyper-betas, and the green model which is the original model) are narrower compared to the posteriors drawn from chaining the hyper tau to $\tau \sim (10000, 1)$. Changing the hyper betas (model shown in yellow) doesn't seem to affect the outcome when we keep our original hyper tau. We conclude that our choice of hyper tau $\tau \sim (10000, 1)$ results in a much more uninformative posterior for the beta_month and the beta_month_pop, possibly reflecting that 1) our choice of hyper taus are centered at a too high mean 2) we do not have sufficient observations for the  likelihood to balance the effect of the prior 3) we cannot infer any information about the sign and magnitude of the effect of the month and the interaction of the month and the population density on the number of cases.  
 
 In the second test, we change below priors:
 
@@ -500,19 +490,11 @@ $$
 \sigma \sim gamma(1000,0.001)
 $$
  
-We evaluate the change on the ypred distribution for 6th month observation of the 6th country, since the predictive distribution is directly affected by the sigma paramater. Running the model with these parameters:
+We evaluate the change on the ypred distribution for 6th month observation of the 6th country, since the predictive distribution is directly affected by the sigma parameter. Running the model with these parameters:
 
-```{r,include=FALSE}
-stan_data_hier <- list(
-  cases = t(cases),
-  N = 17,
-  M = 8,
-  month=t(months),
-  pop_den=t(pop_den)
-)
+```{r,results='hide', message=FALSE}
 hier_2 <- cmdstan_model(stan_file = "hier_sen2.stan")
 model_hier_2 <- hier_2$sample(data = stan_data_hier, refresh=1000)
-
 
 ```
  
@@ -523,9 +505,11 @@ hier_2_draws <- model_hier_2$draws(format='df')
 plot(density(hier_2_draws$`ypred[6,6]`), col='red',
 main="Posterior distribution of ypred[6,6]")
 lines(density(hier_draws$`ypred[6,6]`), col='green')
+legend(x = "bottom",inset = 0,legend=c("sigma~gamma(10000,0.001)", "sigma~gamma(100,0.001)"),
+       col=c("red", "green"), lwd=5, cex=.5, horiz = TRUE)
 
 ```
-
+Based on the posterior plots, we observe that our results are highly sensitive to the specified standard deviations parameterising the prior distributions.  As illustrated above, our chosen sigma induces a much narrower posterior distribution over this specific ypred as compared to the new sigma prior. This indicates that our results are heavily dependent on our choice of priors, making them non-robust. This sensitivity analysis reveals that our current modelling set-up may not be suitable for adequately describing our observations. 
 
 
 $\textbf{The pooled model:}$
@@ -533,12 +517,14 @@ $\textbf{The pooled model:}$
 We can also test the prior sensitivity for the pooled model. As the first test, we change below priors (red) and evaluate the change on the posteriors from the priors used in our model (green). Again, we observe the differences in ypred[100], that is the predictive distribution for the datapoint at index 100. 
 
 $$
-mu \sim normal(100, 10000)\\
-sigma \sim gamma(10000, 0.01)
+\begin{aligned}
+\mu &\sim N(100, 10000)\\
+\sigma &\sim N(10000, 0.01)
+\end{aligned}
 $$
 
 
-```{r,include=FALSE}
+```{r,results='hide', message=FALSE}
 pooled_1 <- cmdstan_model(stan_file = "pooled_sen1.stan")
 model_pooled_1 <- pooled_1$sample(data = stan_data_pooled, refresh=1000)
 model_pol_1_draws <- model_pooled_1$draws(format='df')
@@ -554,12 +540,14 @@ lines(density(pol_draws$`ypred[100]`), col='green')
 And as a second test, we change the $\beta$s priors as shown below and evaluate their effect on the posterior distributions of ypred[100].
 
 $$
-beta\_month \sim normal(20, 1000)\\
-beta\_pop \sim normal(600, 1000)\\
-beta\_month\_pop \sim normal(50,1000)
+\begin{aligned}
+beta\_month &\sim N(20, 1000)\\
+beta\_pop &\sim N(600, 1000)\\
+beta\_month\_pop &\sim N(50,1000)
+\end{aligned}
 $$
 
-```{r,include=FALSE}
+```{r,results='hide', message=FALSE}
 pooled_2 <- cmdstan_model(stan_file = "pooled_sen2.stan")
 model_pooled_2 <- pooled_2$sample(data = stan_data_pooled, refresh=1000)
 model_pol_2_draws <- model_pooled_2$draws(format='df')
@@ -573,22 +561,27 @@ lines(density(pol_draws$`ypred[100]`), col='green')
 
 ```
 
- 
+We draw the same conclusions made for the hierarchical model. The changes in the $\beta$s do not appear to affect our chosen predictive posterior distribution significantly, meanwhile the change in the sigma parameter is very apparent. Our chosen sigma induces a much narrower posterior distribution over this specific ypred as compared to the new sigma prior.This sensitivity analysis reveals that our current modelling set-up may not be suitable for adequately describing our observations. 
  
 ## Discussion
 
 
-1) We assume a linear model, whereas the model is most likely quadratic
-2) After preprocessing, we are left only with 8 countries with 17 observations each. 
-2) We assume there is no correlation between parameters
-3) We only analyze the hierarchical and pooled model, but it could be argued that the separate model might achieve equally good if not better results. 
+In this project, we have assumed a linear relationship between the number of ebola cases and the predictors considered. However, following our sensitivity analyses, it is observed that our results are highly sensitive to our prior specifications, suggesting that the results are not robust to the choice of priors used. As we saw in the introduction, the size of infected population has a non linear relationship with time, which we approximated to be linear. This possibly indicates that this assumption is too strong, and that a linear model may not be the most appropriate for our modelling set-up.  Some possible follow up steps include: considering higher order terms to better approximate the the number of Ebola cases, and having the relationship modeled in a non-linear fashion, such as via kernel functions. 
+
+The size of our dataset must also be considered. After preprocessing, we are left only with 8 countries with 17 observations each. A follow up step could be collecting more observations and possibly considering more predictors, as it is possible that our posterior distributions result uninformative due to the low number of observations. 
+
+We assume there is no correlation between parameters, which is potentially a strong assumption to make. In the future, we could consider encoding this information into the model, for instance in the form of a covariance matrix between the parameters. 
+
+Lastly, in our model comparison, the hierarchical model resulted to be more reliable than the pooled model. Nevertheless, it is possible that a separate model might have also been a reliable model if the dataset included more observations per country. We should consider it for further analysis. 
 
 
 
 ## Conclusion
 
+In summary, we tried to model the number of Ebola cases per month for different countries.  To do so, we assumed a linear relationship between number of the cases in each country and the time passed since the start of the pandemic. We also assumed that the transmission per time rate of the disease has a linear relation with the population density in the country. We used two different models: a “Hierarchical model” and a “Pooled model”. The dataset that we used for our models consists of 8 countries and 17 observations in each country, where each observation correspond to a different month from the beginning of the epidemic. After training our models, we checked their convergence, and evaluated that both the hierarchical and the pooled models converge. However, after comparing the elpd values and the pareto-k optimality parameters of the two models, we found the hierarchical model a better choice for our dataset. In our posterior predictive analysis, we compared the actual number of Ebola cases with the simulated draws from our models. Both the hierarchical and pooled models return appropriate simulations when compared with the empirical data for most of the countries. As the final step, we checked our model’s sensitivity to the choice of priors. Although our model is simple, it gives us reasonable predicts. However as a future work, we can modify it by for instance adding higher order relations so that it give us a more accurate prediction.
 
 ## Self-reflection
 
 While doing this project, we had the opportunity to delve deeper into understanding Bayesian Data Analysis applied to a real-world scenario. 
+We learnt how to engage in the Bayesian Workflow: from fitting candidate models, performing posterior predictive checks, comparing model results, to doing prior sensitivity analyses. One of our biggest takeaways was learning the probabilistic programming language Stan, which we have never been exposed to before. We also learned our to conduct predictive posterior checkings more in detail than what was explored in the assignments. 
 
