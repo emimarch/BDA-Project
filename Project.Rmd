@@ -256,7 +256,7 @@ In this section, we evaluate that our models have reached convergence by observi
 ```{r}
 model_pooled$cmdstan_diagnose()
 ```
-We observe that there were no divergent transitions found in the MCMC computation for the pooled model, and that both the ESS and $\R{hat}$ values are satisfactory. We can assume that our MCMC for the pooled model have reached convergence and that the model parametrization is adequate.
+We observe that there were no divergent transitions found in the MCMC computation for the pooled model, and that both the ESS and $\hat{R}$ values are satisfactory. We can assume that our MCMC for the pooled model have reached convergence and that the model parametrization is adequate.
 
 ### Hierarchical
 
@@ -341,7 +341,7 @@ Graphically, this can be done using the R package Bayesplot.
 
 Pooled: \\
 
-```{r}
+```{r, echo=FALSE}
 # pooled plots
 library("gridExtra")
 library("bayesplot")
@@ -432,14 +432,16 @@ hyper\_tau\_month\_pop &\sim N(10000,10000)
 $$
 And lastly we change the hyper betas instead of the taus (colored yellow in the graph),keeping all else equal, as follows: 
 $$
+\begin{aligned}
 hyper\_beta\_pop &\sim N(60,1000)\\
 hyper\_beta\_month &\sim N(10,10000)\\
 hyper\_beta\_month\_pop &\sim N(10,10000)
+\end{aligned}
 $$
 We compare these two set of changes with the beta posteriors achieved whit the hyperprior parameters used in the model section (colored green in the graph).
 We select country 6 to evaluate the difference on the posterior distributions of our $\beta$s between these new hyperpriors and the hyperpriors chosen in the model section. Running the model with these parameters:
 
-```{r,echo=T, results='hide'}
+```{r,results='hide', message=FALSE}
 stan_data_hier <- list(
   cases = t(cases),
   N = 17,
@@ -455,7 +457,7 @@ hier_4 <- cmdstan_model(stan_file = "hier_sen4.stan")
 model_hier_4 <- hier_4$sample(data = stan_data_hier, refresh=1000)
 ```
  
-```{r, echo=T}
+```{r, echo=FALSE}
 m <- matrix(c(1,2,3,4,5,6,7,7,7),nrow = 3, byrow = TRUE)
 layout(mat = m,heights = c(0.4,0.4,0.2))
 par(mfrow=c(3,1))
@@ -499,7 +501,7 @@ model_hier_2 <- hier_2$sample(data = stan_data_hier, refresh=1000)
 ```
  
 
-```{r}
+```{r, echo=FALSE}
 hier_2_draws <- model_hier_2$draws(format='df')
 
 plot(density(hier_2_draws$`ypred[6,6]`), col='red',
@@ -530,11 +532,12 @@ model_pooled_1 <- pooled_1$sample(data = stan_data_pooled, refresh=1000)
 model_pol_1_draws <- model_pooled_1$draws(format='df')
 ```
 
-```{r}
+```{r, echo=FALSE}
 plot(density(model_pol_1_draws$`ypred[100]`), col='red',
 main="Posterior distribution of ypred[100]")
 lines(density(pol_draws$`ypred[100]`), col='green')
-
+legend(x = "bottom",inset = 0,legend=c("mu~N(100,10000), sigma~N(10000, 0.01)", "mu~N(0, 100000), sigma~gamma(100, 0.001)"),
+       col=c("red", "green"), lwd=5, cex=.5, horiz = TRUE)
 ```
 
 And as a second test, we change the $\beta$s priors as shown below and evaluate their effect on the posterior distributions of ypred[100].
@@ -554,11 +557,12 @@ model_pol_2_draws <- model_pooled_2$draws(format='df')
 ```
 
 
-```{r}
+```{r, echo=FALSE}
 plot(density(model_pol_2_draws$`ypred[100]`), col='red',
 main="Posterior distribution of ypred[100]")
 lines(density(pol_draws$`ypred[100]`), col='green')
-
+legend(x = "bottom",inset = 0,legend=c("bm~N(20,1000), bp~N(600, 1000), bmp~(50,1000)", "bm~N(0, 10000), bp~N(60, 10000), bmp~N(0,10000)"),
+       col=c("red", "green"), lwd=5, cex=.5, horiz = TRUE)
 ```
 
 We draw the same conclusions made for the hierarchical model. The changes in the $\beta$s do not appear to affect our chosen predictive posterior distribution significantly, meanwhile the change in the sigma parameter is very apparent. Our chosen sigma induces a much narrower posterior distribution over this specific ypred as compared to the new sigma prior.This sensitivity analysis reveals that our current modelling set-up may not be suitable for adequately describing our observations. 
