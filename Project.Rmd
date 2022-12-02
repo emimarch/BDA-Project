@@ -1,5 +1,5 @@
 ---
-title: "BDA-Project"
+title: "BDA-Project: Ebola epidemic"
 output:
   pdf_document: default
   html_document: default
@@ -69,7 +69,7 @@ str(data)
 
 Our final dataset contains 17 observations per country, one for each months_diff value (1,2,3,4,5,6,7,8,9, 10, 11, 12, 13, 14, 15,16 and 18 as month 17 was missing for every country in the original dataset, but the other observations are otherwise linear in time). The counts my country and month_diff are shown below. 
 
-```{r}
+```{r, echo=FALSE}
 print('Observations by Country:')
 table(data$Country)
 
@@ -78,7 +78,7 @@ table(data$months_diff)
 ```
 A more illustrative representation of the dataset can be seen from the scatter plots of below. In the top panels, we do not distinguish between countries. In the bottom panels, we differentiate between the observations of different countries by color. A small jitter is added to all graph to highlight overlapped points.  
 
-```{r, include=FALSE}
+```{r, echo=FALSE}
 library("ggplot2")
 #install.packages("gridExtra") 
 library("gridExtra")
@@ -88,7 +88,7 @@ qa <- ggplot(data,aes(x=months_diff,y=Pop_den))+geom_point(size=1, position = "j
 #za <- ggplot(data,aes(x=Pop_den,y=Cases))+geom_point(size=1, position = "jitter")
 grid.arrange(pa,qa, ncol=2)
 ```
-```{r}
+```{r, echo=FALSE}
 #library(ggpubr)
 p<-ggplot(data,aes(x=months_diff,y=Cases,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
 q <- ggplot(data,aes(x=months_diff,y=Pop_den,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
@@ -128,7 +128,7 @@ $$
 $$
 Where the second gamma parameter refers to the rate of the gamma distribution. The stan model is reported below: 
 
-```{r,results='hide', message=FALSE}
+```{r}
 writeLines(readLines('pooled.stan'))
 
 ```
@@ -190,7 +190,7 @@ The stan code for the hierarchical model can be observed below.
 writeLines(readLines("hier.stan"))
 ```
 
-We feed the model the data in the form of 17x8 matrices, where the columns represent the coutries and the rows the observations.  
+We feed the model the data in the form of 17x8 matrices, where the columns represent the countries and the rows the observations.  
 ```{r}
 
 months<- matrix(nrow = 8, ncol = 17)
@@ -271,7 +271,7 @@ Initially we had a hyperprior $\mu_h \sim gamma(1, 0.01)$, which resulted into a
 
 We use the loo function to observe the k-values of our models and compare them based on their elpd difference. We select the best model based on the elpd comparison results and analyze the reliability of each model by observing the proportion of k-values < 0.7. 
 
-```{r}
+```{r,echo=FALSE}
 library("loo")
 col_names_lik_hier <- c()
 col_names_lik_pool <- c()
@@ -295,7 +295,7 @@ loo_pol<- loo(data.matrix(pol_draws[, col_names_lik_pool])) # select log_lik
 We first observe the k-diagnostics for each model. These are presented in the two below and summarized in the following tables. 
 
 
-```{r}
+```{r, echo=FALSE}
 par(mfrow=c(2,1)) 
 plot(loo_pol, main='Pooled: PSIS diagnostic plot')
 plot(loo_hier, main='Hierarchical: PSIS diagnostic plot')
@@ -304,7 +304,6 @@ plot(loo_hier, main='Hierarchical: PSIS diagnostic plot')
 **Pareto-k diagnostics for the pooled model**:
 ```{r}
 pareto_k_table(loo_pol)
-
 ```
 
 **Pareto-k diagnostics for the hierarchical model**:
@@ -339,7 +338,7 @@ $$
 
 Graphically, this can be done using the R package Bayesplot.
 
-Pooled: \\
+**Pooled**: 
 
 ```{r, echo=FALSE}
 # pooled plots
@@ -373,9 +372,9 @@ do.call(grid.arrange, pooled_plots)
 
 From the plots for Mali, Nigeria, Senegal, Spain and the United States, we see that the actual observations look compatible with the simulated draws. This is also arguably true for Guinea, since its observations fall within the bodies of the boxplots. However, the model does not seem to fit well with observations from Liberia and Sierra Leone. Hence, the pooled model may not be the most suitable when we take all the countries data into account.
 
-Hierarchical: \\
+**Hierarchical**: 
 
-```{r}
+```{r, echo=FALSE}
 # hierarchical plots
 
 hierarchical_draws_matrix <- model_hier$draws(format='matrix')
@@ -458,9 +457,8 @@ model_hier_4 <- hier_4$sample(data = stan_data_hier, refresh=1000)
 ```
  
 ```{r, echo=FALSE}
-m <- matrix(c(1,2,3,4,5,6,7,7,7),nrow = 3, byrow = TRUE)
-layout(mat = m,heights = c(0.4,0.4,0.2))
 par(mfrow=c(3,1))
+fig.dim =c(8,6)
 hier_1_draws <- model_hier_1$draws(format='df')
 hier_3_draws <- model_hier_3$draws(format='df')
 hier_4_draws <- model_hier_4$draws(format='df')
@@ -588,4 +586,7 @@ In summary, we tried to model the number of Ebola cases per month for different 
 
 While doing this project, we had the opportunity to delve deeper into understanding Bayesian Data Analysis applied to a real-world scenario. 
 We learnt how to engage in the Bayesian Workflow: from fitting candidate models, performing posterior predictive checks, comparing model results, to doing prior sensitivity analyses. One of our biggest takeaways was learning the probabilistic programming language Stan, which we have never been exposed to before. We also learned our to conduct predictive posterior checkings more in detail than what was explored in the assignments. 
+
+## References
+
 
