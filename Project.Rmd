@@ -1,6 +1,7 @@
 ---
 title: "BDA-Project"
 output: html_document
+bibliography: references.bib
 date: "2022-11-10"
 ---
 
@@ -14,9 +15,32 @@ check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
 
 ## Introduction 
 
--the motivation
 
-For our Bayesian Data Analysis Project, we aim to 
+For our Bayesian Data Analysis Project, we aim to model monthly number of infectious cases of the Ebola epidemic in various countries. As a simple model, the spread of the Ebola can be simulated by the SIS model shown by below equations:
+$$
+\frac{dS}{dt}=-\beta SI+\gamma I\\
+\frac{dI}{dt}=\beta SI-\gamma I
+$$
+Where, S is size of the susceptible population, I is size of the infected population. Also parameter $\beta$ is the transmission rate of the disease and the parameter $\gamma$ is the recovery rate. Considering that the size of the population is always constant and equal to 1, $1=S(t)+I(t)$, we can solve the system above:
+$$
+I(t)=\frac{I_{\infty}}{1+V e^{-\chi t}}
+$$
+Where, $V=\frac{I_{\infty}}{I_0}-1$, $\chi=\beta - \gamma$, and $I_{\infty}=(1-\frac{\gamma}{\beta})$. Using the Taylor series, this can be expanded as below:
+$$
+I(t)=I_0+ \frac{V I_{0}\chi}{V+1} \; t \;+\frac{I_0 (V-1) V \chi^2}{2(V+1)^2}\; t^2\;+\dots 
+$$
+Taking only until the first order into account, we can write:
+$$
+I(t)=I_0 + \frac{V I_{0}\chi}{V+1} \; t
+$$
+But transmission rate depends on the number of susceptibles that an infected is on average in contact with. We assume this value has a linear relation with population density. We also assume that the initial number of infected people, $I_0$, is also depended on the population density. Then we can write our model as below:
+
+$$
+I(t)=\mu+\beta_{pop\_den}\times \text{population density} + (\beta_{month\_diff}+ \beta_{pop\_den,month\_diff} \times \text{population density}) \times t
+$$
+As a result, we use the population density of the country, and number of months passed from the start of the pandemic as our predictors to model the number of Ebola cases. 
+
+ 
 
 -the problem
 -and the main modeling idea.
@@ -25,12 +49,12 @@ The main modeling idea in inspired by
 
 
 -Showing some illustrative figure is recommended.
-
+In the following section, more information on the Data can be found with explanatory illustrative figures. 
 ## Data
 
 ### Data preprocessing
 
-We collected the total number of Ebola cases from the Ebola dataset provided by WHO and shared by humandata.org (we use ebola_data_db_format.csv from https://data.humdata.org/dataset/ebola-cases-2014). The ebola cases we use in our project are an aggregate of suspected, confirmed and probable ebola cases, which are based on official information reported by ministries of health. The original dataset contains figures for ten countries: 	
+We collected the total number of Ebola cases from the Ebola dataset provided by WHO and shared by humandata.org (we use ebola_data_db_format.csv from @ebola). The ebola cases we use in our project are an aggregate of suspected, confirmed and probable ebola cases, which are based on official information reported by ministries of health. The original dataset contains figures for ten countries: 	
 Guinea,  Italy,  Liberia,  Mali,  Nigeria,  Senegal,  Sierra Leone,  Spain,  United Kingdom,  United States. Each country spans it own date range of varying length between the end 2014 to the beginning of 2016, therefore we have different number of observations for each country. The case count is usually provided every 1 to 3 days (although the periodicity appear to vary by country), that we aggregate into monthly figures. We did so by assigning the month value of 0 to the first date that appears in the dataset, and calculate the the other month values as the month difference from the first date. The first date in our original dataset was 2014-08-29 for Guinea, so all observations occuring 30 days after that have month difference value 0. The observations with date 2015-12-29 for the United States, on the other hand, has month_diff value 15 because the difference in time between this date and the first date in our dataset is 15 months. We opted for this approach, because we wanted the month_diff to represent the month count from the start of the outbreak. We decided to drop Italy and the United Kingdom from our analysis due to the fact that they had too many missing values. We also dropped observations having month = 0, since most of the remaining countries had observations starting from month 1. 
 We aggregated the data for the remaining countries with the population density for each country at the given date. We use the population density from the WorldBank database. The population density can only access as a yearly figure. Therefore, using the previous example of the United states with month_diff value 15 calculated from date 2015-12-29, the pop_dens value will represent the population density of the United States in 2015. 
 
@@ -72,18 +96,19 @@ qa <- ggplot(data,aes(x=months_diff,y=Pop_den))+geom_point(size=1, position = "j
 grid.arrange(pa,qa, ncol=2)
 ```
 ```{r}
+#library(ggpubr)
 p<-ggplot(data,aes(x=months_diff,y=Cases,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
 q <- ggplot(data,aes(x=months_diff,y=Pop_den,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
 #z <- ggplot(data,aes(x=Pop_den,y=Cases,col=Country))+geom_point(size=1,position = "jitter")+theme(legend.position="bottom", legend.text = element_text(size=3))
 grid.arrange(p,q,ncol=2)
-
+#ggarrange(p,q,ncol=2, common_legend=TRUE)
 ```
 
 As can be observed from the panels above, there is obvious relationship between the country and the cases count by month. This will come to show that the pooled model will not accurately fit our data, because of this dependency of the country and the cases. On the other hand, a hierarchical model that allows for a degree of differentiation between countries, will result in a better fit, although a separate model might perform even better. 
 
 ## Models 
 
-The models we settled on are inspired by the Bayesian analysis on the motivational shifts in aging monkeys (add citation here). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covarity, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we assume that population density is almost constant for each country and identify it as a group-level covarity. Lastly, our individual-level covarity is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distribution.  We run the models using cmdstan. For the MCMC attributes, we decided to use using the cmdstan defaults: that is, we use 4 chains, each having chain length 2000 and a burn-in of 1000. We agreed that four chains and chain length of 1000 after burn-in should be sufficient for the dataset we are using. The convergence analysis in the "Convergence analysis" section discusses the convergence of the parameters in the models more in detail. 
+The models we settled on are inspired by the study "A First Look at Multilevel Regression; or {Everybody’s} Got Something to Hide Except Me and My Macaque" (@simpson2022). Similarly to their analysis on monkeys, our grouping variable is the country, which indicates to what group the observation belongs. We have one group-level covarity, which is the population density of the country. This does not vary at every observation, but changes by minimal amounts every year. Since the changes in density are very small for each country, we assume that population density is almost constant for each country and identify it as a group-level covarity. Lastly, our individual-level covarity is the month_diff variable, as it varies with the individual observations. We will run a pooled analysis and a hierarchical analysis on this dataset to evaluate which approach returns the best posterior predictive distributions.  We run the models using cmdstan. For the MCMC attributes, we decided to use using the cmdstan defaults: that is, we use 4 chains, each having chain length 2000 and a burn-in of 1000. We agreed that four chains and chain length of 1000 after burn-in should be sufficient for the dataset we are using. The convergence analysis in the "Convergence analysis" section discusses the convergence of the parameters in the models more in detail, where we observed that both the pooled and the hierarchical models reach convergence with the given cmdstan settings. 
 
 
 ### Pooled
@@ -154,7 +179,7 @@ Cases_{ij}| \mu_j, \beta, \sigma \sim N(\mu_j + \beta_{pop\_den_j} pop\_den_{ij}
 \\
 \\
 \mu_h \sim normal(1000, 10000)\\
-\tau \sim gamma(10000,1) \\
+\tau \sim gamma(10000,1)\\
 
 \beta_{hpop\_den} \sim N(60, 10000)\\
 \beta_{hmonth, pop\_den} \sim N(0, 10000)\\
@@ -257,7 +282,7 @@ model_hier$cmdstan_diagnose()
 ```
 
 As can be observed, with the current parametrization, the MCMCs for our hierarchical models had no divergent transitions, and the $\hat{R}$ and $SSE$ metrics for our parameter are satisfactory. We may therefore assume that our chains have converged and the model is satisfactory. 
-Initially we had a hyperprior $\mu_h \sim gamma(1, 0.01)$, which resulted into almost all transition diverging and three fourth of our parameters to fail convergence according to the $\hat{R}$ diagnostic. The reason for this was probably related to the fact that this prior was too narrow and informative. After chaning it to a more wide prior $\mu_h \sim N(1000, 10000)$ the MCMCs performed significantly better. 
+Initially we had a hyperprior $\mu_h \sim gamma(1, 0.01)$, which resulted into almost all transition diverging and three fourth of our parameters to fail convergence according to the $\hat{R}$ diagnostic. The reason for this was probably related to the fact that this prior was too narrow and informative. After changing it to a more wide prior $\mu_h \sim N(1000, 10000)$ the MCMCs performed significantly better. 
 
 ## Model comaparison 
 
@@ -313,19 +338,247 @@ com
 ```
 
 Model 2, which is the hierarchical model, appears to perform better on the prediction accuracy than the pooled model. 
-We therefore conclude that with our current parametrizations for the pooled and the hierarchical model, the hierarchical model appears to be the best performing model. 
+We therefore conclude that with our current parametrizations for the pooled and the hierarchical model, the hierarchical model appears to be the most reliable model.
 
 ## Posterior predictive checks
 
 
-## Prior sensitivity analysis 
- - Try with different priors
- 
- 
- 
-## Discussion 
+After fitting our model, we perform posterior predictive checks by understanding how the actual number of ebola cases compares with simulated draws from the model. If the model is a good fit, we would expect the observed data to look similar to the predicted draws.
 
-1) We assume a linear model, whereas the model is most likely quadatic
+We will make this comparison by using the same values of the predictors -- months difference and population density -- which we denote by $X$, to obtain the simulated draws. In this case,
+the predictive distribution is given by
+
+$$
+\begin{aligned}
+p(\hat{y} |y, X) \sim \int p(\hat{y}|\theta, X) p(\theta|y, X) d \theta.
+\end{aligned}
+$$
+
+Graphically, this can be done using the R package Bayesplot.
+
+Pooled: \\
+
+```{r}
+# pooled plots
+library("gridExtra")
+library("bayesplot")
+pooled_draws_matrix <- model_pooled$draws(format = "matrix")
+#pooled_draws_matrix <- as_draws_matrix(pooled_draws)
+
+pooled_plots <- list()
+k <- 1
+       for (m in 1:8) {
+        col_names_ypred <- c()
+         for (n in 1:17) {
+  col_name <- paste("ypred[", k,"]", sep = "")
+  col_names_ypred <- c(col_names_ypred, col_name)
+  k <- k+1
+         }
+  start <- 17*(m-1)+1
+  end <- 17*(m-1)+17
+  country_data <- data$Cases[start:end]
+  plot_pred <- ppc_intervals(country_data, subset(pooled_draws_matrix, col_names_ypred))
+  pooled_plots[[m]] <- plot_pred + ggplot2::scale_x_continuous(
+   labels = data$months_diff[start:end],
+   breaks = data$months_diff[start:end]) + ggtitle(paste(data$Country[17*(m-1)+1])) +
+    xlab("months difference") + ylab("Cases") +
+theme(axis.text.x = element_text(size = 3))
+       }
+
+do.call(grid.arrange, pooled_plots)
+```
+
+From the plots for Mali, Nigeria, Senegal, Spain and the United States, we see that the actual observations look compatible with the simulated draws. This is also arguably true for Guinea, since its observations fall within the bodies of the boxplots. However, the model does not seem to fit well with observations from Liberia and Sierra Leone. Hence, the pooled model may not be the most suitable when we take all the countries data into account.
+
+Hierarchical: \\
+
+```{r}
+# hierarchical plots
+
+hierarchical_draws_matrix <- model_hier$draws(format='matrix')
+#hierarchical_draws_matrix <- as_draws_matrix(hierarchical_draws)
+
+
+hier_plots <- list()
+
+for (m in 1:8) {
+  col_names_ypred <- c()
+  for (n in 1:17) {
+    col_name <- paste("ypred[", n, ",",
+    m, "]", sep = "")
+    col_names_ypred <- c(col_names_ypred, col_name)
+  }
+  start <- 17*(m-1)+1
+  end <- 17*(m-1)+17
+  country_data <- data$Cases[start:end]
+  plot_pred <- ppc_intervals(country_data, subset(hierarchical_draws_matrix, col_names_ypred))
+  hier_plots[[m]] <- plot_pred + ggplot2::scale_x_continuous(
+   labels = data$months_diff[start:end],
+   breaks = data$months_diff[start:end]) + ggtitle(paste(data$Country[17*(m-1)+1])) +
+    xlab("months difference") + ylab("Cases") +
+theme(axis.text.x = element_text(size = 3))
+       }
+
+do.call(grid.arrange, hier_plots)
+
+```
+From the plots for Mali, Nigeria, Senegal, Spain and the United States, we see that the actual observations look compatible with the simulated draws. By inspection, the fit looks better for the hierarchical model as compared to the pooled model when considering the aforementioned countries. However, as with the pooled model, the model does not seem to fit well with observations from Liberia and Sierra Leone. This might suggest that the model specification is not precise enough.
+
+
+## Prior sensitivity analysis 
+
+$\textbf{The hierarchical model:}$
+
+The hierarchical model is a better model for analyzing our data (Model Selection section). To check the sensitivity of this model to the choice of priors, we try different priors for this model. Because we have so many hyperparameters, we evaluate the effect of the prior distribution only on the posterior distributions of the directly affected parameters. The first section of priors is as below, keeping all else equal (colored red in the graphs):
+
+$$
+hyper\_tau\_pop \sim gamma(10000,10)\\
+hyper\_tau\_month \sim gamma(1000,10)\\
+hyper\_tau\_month\_pop \sim gamma(1000,10)
+$$
+Which we also change to the following set (colored blue in the graph), keeping all else equal: 
+
+$$
+hyper\_tau\_pop \sim normal(10000,100000)\\
+hyper\_tau\_month \sim normal(10000,10000)\\
+hyper\_tau\_month\_pop \sim normal(10000,10000)
+$$
+And lastly we change the hyper betas instead of the taus (colored yellow in the graph),keeping all else equal, as follows: 
+$$
+hyper\_beta\_pop \sim N(60,1000)\\
+hyper\_beta\_month \sim N(10,10000)\\
+hyper\_beta\_month\_pop \sim N(10,10000)
+$$
+We compare these two set of changes with the beta posteriors achieved whit the hyperprior parameters used in the model section (colored green in the graph).
+We select country 6 to evaluate the difference on the posterior distributions of our $\beta$s between these new hyperpriors and the hyperpriors chosen in the model section. Running the model with these parameters:
+
+```{r,include=FALSE}
+stan_data_hier <- list(
+  cases = t(cases),
+  N = 17,
+  M = 8,
+  month=t(months),
+  pop_den=t(pop_den)
+)
+hier_1 <- cmdstan_model(stan_file = "hier_sen1.stan")
+model_hier_1 <- hier_1$sample(data = stan_data_hier, refresh=1000)
+hier_3 <- cmdstan_model(stan_file = "hier_sen3.stan")
+model_hier_3 <- hier_3$sample(data = stan_data_hier, refresh=1000)
+hier_4 <- cmdstan_model(stan_file = "hier_sen4.stan")
+model_hier_4 <- hier_4$sample(data = stan_data_hier, refresh=1000)
+```
+ 
+```{r}
+par(mfrow=c(3,1))
+hier_1_draws <- model_hier_1$draws(format='df')
+hier_3_draws <- model_hier_3$draws(format='df')
+hier_4_draws <- model_hier_4$draws(format='df')
+plot(density(hier_1_draws$`beta_month[6]`), col='red',
+main="Posterior distribution of beta_month[6]")
+lines(density(hier_draws$`beta_month[6]`), col='green')
+lines(density(hier_3_draws$`beta_month[6]`), col='blue')
+lines(density(hier_4_draws$`beta_month[6]`), col='yellow')
+plot(density(hier_1_draws$`beta_pop[6]`), col='red',
+main="Posterior distribution of beta_pop[6]")
+lines(density(hier_draws$`beta_pop[6]`), col='green')
+lines(density(hier_3_draws$`beta_pop[6]`), col='blue')
+lines(density(hier_4_draws$`beta_pop[6]`), col='yellow')
+plot(density(hier_1_draws$`beta_month_pop[6]`), col='red',
+main="Posterior distribution of beta_month[6]")
+lines(density(hier_draws$`beta_month_pop[6]`), col='green')
+lines(density(hier_3_draws$`beta_month_pop[6]`), col='blue')
+lines(density(hier_4_draws$`beta_month_pop[6]`), col='yellow')
+
+
+legend(1, 95, legend=c("ht~gamma(10000,10)", "ht~N(10000,100000)", "ht~gamma(10000,1)", "hb~N(60,1000) for pop and N(10,10000) for others"),
+       col=c("red", "blue", "green", "yellow"), lty=1:2, cex=0.8)
+```
+
+In the second test, we change below priors:
+
+$$
+\sigma \sim gamma(1000,0.001)
+$$
+ 
+We evaluate the change on the ypred distribution for 6th month observation of the 6th country, since the predictive distribution is directly affected by the sigma paramater. Running the model with these parameters:
+
+```{r,include=FALSE}
+stan_data_hier <- list(
+  cases = t(cases),
+  N = 17,
+  M = 8,
+  month=t(months),
+  pop_den=t(pop_den)
+)
+hier_2 <- cmdstan_model(stan_file = "hier_sen2.stan")
+model_hier_2 <- hier_2$sample(data = stan_data_hier, refresh=1000)
+
+
+```
+ 
+
+```{r}
+hier_2_draws <- model_hier_2$draws(format='df')
+
+plot(density(hier_2_draws$`ypred[6,6]`), col='red',
+main="Posterior distribution of ypred[6,6]")
+lines(density(hier_draws$`ypred[6,6]`), col='green')
+
+```
+
+
+
+$\textbf{The pooled model:}$
+
+We can also test the prior sensitivity for the pooled model. As the first test, we change below priors (red) and evaluate the change on the posteriors from the priors used in our model (green). Again, we observe the differences in ypred[100], that is the predictive distribution for the datapoint at index 100. 
+
+$$
+mu \sim normal(100, 10000)\\
+sigma \sim gamma(10000, 0.01)
+$$
+
+
+```{r,include=FALSE}
+pooled_1 <- cmdstan_model(stan_file = "pooled_sen1.stan")
+model_pooled_1 <- pooled_1$sample(data = stan_data_pooled, refresh=1000)
+model_pol_1_draws <- model_pooled_1$draws(format='df')
+```
+
+```{r}
+plot(density(model_pol_1_draws$`ypred[100]`), col='red',
+main="Posterior distribution of ypred[100]")
+lines(density(pol_draws$`ypred[100]`), col='green')
+
+```
+
+And as a second test, we change the $\beta$s priors as shown below and evaluate their effect on the posterior distributions of ypred[100].
+
+$$
+beta\_month \sim normal(20, 1000)\\
+beta\_pop \sim normal(600, 1000)\\
+beta\_month\_pop \sim normal(50,1000)
+$$
+
+```{r,include=FALSE}
+pooled_2 <- cmdstan_model(stan_file = "pooled_sen2.stan")
+model_pooled_2 <- pooled_2$sample(data = stan_data_pooled, refresh=1000)
+model_pol_2_draws <- model_pooled_2$draws(format='df')
+```
+
+
+```{r}
+plot(density(model_pol_2_draws$`ypred[100]`), col='red',
+main="Posterior distribution of ypred[100]")
+lines(density(pol_draws$`ypred[100]`), col='green')
+
+```
+
+ 
+ 
+## Discussion
+
+
+1) We assume a linear model, whereas the model is most likely quadratic
 2) After preprocessing, we are left only with 8 countries with 17 observations each. 
 2) We assume there is no correlation between parameters
 3) We only analyze the hierarchical and pooled model, but it could be argued that the separate model might achieve equally good if not better results. 
@@ -334,4 +587,8 @@ We therefore conclude that with our current parametrizations for the pooled and 
 
 ## Conclusion
 
-## Self-reflection 
+
+## Self-reflection
+
+While doing this project, we had the opportunity to delve deeper into understanding Bayesian Data Analysis applied to a real-world scenario. 
+

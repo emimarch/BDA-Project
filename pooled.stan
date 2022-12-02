@@ -29,13 +29,15 @@ model {
 }
 
 generated quantities {
-  real ypred;
+  #real ypred;
+  vector[N] ypred;
   vector[N] log_lik;
   
-  ypred = normal_rng(mu, sigma); // pooled predictive distribution 
+  #ypred = normal_rng(mu, sigma); // pooled predictive distribution 
   
   for(i in 1:N)
     {
+      ypred[i] = normal_rng(mu + beta_month*month[i] + beta_pop*pop_den[i] + beta_month_pop*month[i]*pop_den[i], sigma);
       log_lik[i] = normal_lpdf(cases[i] | mu + beta_month*month[i] + beta_pop*pop_den[i] + beta_month_pop*month[i]*pop_den[i], sigma);
    }
 
